@@ -20,9 +20,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
-
-GRIST_INSTALLER_VERSION="1.1.0"
-
+GRIST_INSTALLER_VERSION="1.2.0"
 usage() {
   echo "usage: $0 <project-root> [options]"
   echo

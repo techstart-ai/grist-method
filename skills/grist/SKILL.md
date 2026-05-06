@@ -1,8 +1,8 @@
 ---
 name: grist
 description: >
-  Token-efficient mode for BMAD-method and OpenSpec workflows. Three phase-bound modes:
-  /grist design (BMAD planning), /grist iterate (OpenSpec changes), /grist ship (coding).
+  Token-efficient mode for BMAD-method, OpenSpec workflows, and general chat. Four phase-bound modes:
+  /grist chat (general token-saving chat), /grist design (BMAD planning), /grist iterate (OpenSpec changes), /grist ship (coding).
   Auto-triggers on /grist, "grist mode", "ship mode", BMAD phase transitions, OpenSpec proposal commands.
 ---
 
@@ -12,9 +12,22 @@ Compress chat. Compress artifacts to YAML. Suppress coding-phase narration. Code
 
 Active every response after activation. No drift across turns. Off only on "stop grist" / "normal mode" / `/grist off`.
 
-Default mode if just `/grist`: **ship** (most-used phase). Switch: `/grist design|iterate|ship`.
+Default mode if just `/grist`: **ship** (most-used phase). Switch: `/grist chat|design|iterate|ship`.
 
 ## Modes
+
+### /grist chat — Normal chat and Q&A
+
+Use for general codebase Q&A, brainstorming, or debugging outside formal BMAD/OpenSpec flows. Token saving matches the "caveman" style.
+
+**Chat:** ultra.
+
+**Artifacts:** None. No YAML forms are emitted.
+
+**Rules:**
+- Strictly adhere to chat compression: drop articles, filler, pleasantries, hedging.
+- Use abbreviations and fragments. Code and technical terms unchanged.
+- No artifact generation logic applies.
 
 ### /grist design — BMAD Analysis / Planning / Solutioning
 
