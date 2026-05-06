@@ -55,15 +55,18 @@ bmad-overrides/
 ## Install
 
 ```bash
-./bmad-overrides/install.sh /path/to/your/bmad/project
+# From the grist repo root
+./install.sh /path/to/your/bmad/project
 ```
 
-The installer:
-- Copies emission rules, schemas, scripts (always overwrite — these are GRIST-controlled).
-- Copies TOML overrides only if the target doesn't already exist (preserves your edits).
-- Skips anything in `.user.toml` (your personal layer is gitignored and untouched).
+BMAD projects can use one of two runtimes. The installer auto-detects which you use and applies the right overrides:
 
-Re-run anytime to upgrade schemas/scripts. Your TOML overrides survive.
+1. **Claude Code skills** (detected via `.claude/skills/bmad-*/`): The installer patches your step files directly with `<!-- GRIST:BEGIN/END -->` markers, installs the `grist` skill and slash command, and updates `CLAUDE.md`.
+2. **BMAD npm/framework** (detected via `_bmad/bmm/config.yaml`): The installer copies TOML overrides into `_bmad/custom/`. It preserves your existing edits and skips `.user.toml` files.
+
+In both cases, it copies emission rules, schemas, and scripts (always overwriting these GRIST-controlled files).
+
+Re-run anytime to upgrade schemas/scripts. Your custom edits (or TOML overrides) survive.
 
 ## What you'll see
 

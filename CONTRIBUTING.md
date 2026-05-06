@@ -19,14 +19,19 @@ commands/                  # Claude Code slash commands.
 
 ## Before you submit
 
-1. **Run smoke tests** on the example fixtures:
+1. **Run smoke tests** for the installers and converters:
 
    ```bash
+   # Test the Claude Code installer injection paths
+   ./test/smoke-test.sh
+   ./test/smoke-test-openspec.sh
+
+   # Test converters and gristats
    python3 gristats/gristats.py project examples/auth-v2/
    python3 converters/bmad-prd-to-grist.py examples/auth-v2/PRD.md > /tmp/check.yaml
    ```
 
-   Both should exit 0 and produce sane output.
+   All scripts should exit 0 and report success.
 
 2. **Update relevant READMEs.** Each module (bmad-overrides, openspec-overrides, gristats) has its own README. If you change behavior, update it.
 
