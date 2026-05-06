@@ -32,21 +32,23 @@ git clone https://github.com/<your-username>/grist.git
 cd grist
 ```
 
-### For BMAD-method projects
+### Auto-detect Installation
+
+The unified installer auto-detects your project type (BMAD npm, Claude Code skills, OpenSpec) and installs the correct overrides:
 
 ```bash
-./bmad-overrides/install.sh /path/to/your/bmad/project
+./install.sh /path/to/your/project
 ```
 
-Five workflows now emit `.grist.yaml` artifacts alongside the prose: `bmad-create-prd`, `bmad-create-architecture`, `bmad-create-story`, `bmad-dev-story`, `bmad-code-review`. See [bmad-overrides/README.md](bmad-overrides/README.md) for details.
-
-### For OpenSpec projects
-
+Or force a specific installation:
 ```bash
-./openspec-overrides/install.sh /path/to/your/openspec/project
+./install.sh --claude-code /path/to/your/project
+./install.sh --bmad-npm /path/to/your/project
+./install.sh --openspec /path/to/your/project
 ```
 
-A custom `grist` schema replaces OpenSpec's default `spec-driven` schema. The 4-file (`proposal.md` + `design.md` + `tasks.md` + `specs/`) layout collapses to a single `change.grist.yaml` per change. See [openspec-overrides/README.md](openspec-overrides/README.md).
+* **BMAD-method:** Five workflows emit `.grist.yaml` artifacts alongside the prose. See [bmad-overrides/README.md](bmad-overrides/README.md) for details.
+* **OpenSpec:** A custom `grist` schema replaces the default 4-file layout with a single `change.grist.yaml`. See [openspec-overrides/README.md](openspec-overrides/README.md).
 
 ### For Cursor / Claude Code / Windsurf
 

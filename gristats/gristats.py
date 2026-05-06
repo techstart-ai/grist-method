@@ -408,6 +408,100 @@ def cmd_summary(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify(args: argparse.Namespace) -> int:
+    root = Path(args.dir).resolve()
+    if not root.is_dir():
+        print(f"not a directory: {root}", file=sys.stderr)
+        return 1
+
+    print(f"Verifying GRIST installation in: {root}")
+    print("-" * 72)
+    
+    issues = 0
+    passed = 0
+    
+    def check_file(path: Path, name: str):
+        nonlocal issues, passed
+        if path.exists():
+            print(f"✅ {name} exists")
+            passed += 1
+            return True
+        else:
+            print(f"❌ {name} missing ({path.relative_to(root) if path.is_relative_to(root) else path})")
+            issues += 1
+            return False
+
+    def check_marker(path: Path, marker: str, name: str):
+        nonlocal issues, passed
+        if not path.exists():
+            print(f"❌ {name} missing")
+            issues += 1
+            return False
+        content = path.read_text(encoding="utf-8", errors="replace")
+        if marker in content:
+            print(f"✅ {name} has marker '{marker}'")
+            passed += 1
+            return True
+        else:
+            print(f"❌ {name} missing marker '{marker}'")
+            issues += 1
+            return False
+
+    # Detect installation type
+    is_bmad_skills = any((root / ".claude/skills").glob("bmad-*"))
+    is_bmad_npm = (root / "_bmad/bmm/config.yaml").exists()
+    is_openspec = any((root / ".claude/commands").glob("opsx*.md")) or (root / "openspec").exists()
+    
+    if not any([is_bmad_skills, is_bmad_npm, is_openspec]):
+        print("⚠️  No BMAD or OpenSpec project detected.")
+        return 1
+
+    # Check common Claude Code items
+    if is_bmad_skills or is_openspec:
+        print("\n--- Claude Code Common ---")
+        check_file(root / ".claude/skills/grist/SKILL.md", "GRIST Skill")
+        check_file(root / ".claude/commands/grist.md", "GRIST Command")
+        check_marker(root / "CLAUDE.md", "<!-- GRIST:RULES -->", "CLAUDE.md always-on rules")
+        check_file(root / ".grist/context-pack.md", "Context pack template")
+
+    # Check BMAD Claude Code skills
+    if is_bmad_skills:
+        print("\n--- BMAD Claude Code Overrides ---")
+        for skill_dir in (root / ".claude/skills").glob("bmad-*"):
+            skill_name = skill_dir.name
+            steps_dir = skill_dir / "steps"
+            if steps_dir.is_dir():
+                step_files = sorted(steps_dir.glob("*.md"))
+                if step_files:
+                    last_step = step_files[-1]
+                    check_marker(last_step, "<!-- GRIST:BEGIN -->", f"{skill_name} final step injection")
+            if (skill_dir / "workflow.md").exists():
+                check_marker(skill_dir / "workflow.md", "<!-- GRIST:BEGIN -->", f"{skill_name} workflow.md injection")
+
+    # Check OpenSpec Claude Code
+    if is_openspec:
+        print("\n--- OpenSpec Claude Code Overrides ---")
+        check_file(root / "openspec/schemas/grist/schema.yaml", "OpenSpec GRIST schema")
+        for cmd in ["opsx-propose.md", "opsx-apply.md", "opsx-archive.md", "opsx:propose.md", "opsx:apply.md", "opsx:archive.md"]:
+            cmd_path = root / ".claude/commands" / cmd
+            if cmd_path.exists():
+                check_marker(cmd_path, "<!-- GRIST:BEGIN -->", f"{cmd} injection")
+
+    # Check BMAD npm
+    if is_bmad_npm:
+        print("\n--- BMAD npm/framework Overrides ---")
+        check_file(root / "_bmad/custom/bmad-create-prd.toml", "bmad-create-prd.toml")
+        check_file(root / "_bmad/custom/grist-schemas/prd.grist.yaml", "PRD Schema")
+        check_file(root / "_bmad/custom/grist-scripts/post-prd-to-grist.py", "Post-PRD Script")
+
+    print("-" * 72)
+    if issues == 0:
+        print(f"✨ Verification passed: {passed} checks OK.")
+        return 0
+    else:
+        print(f"⚠️  Verification failed: {issues} issues found, {passed} checks OK.")
+        return 1
+
 # --- Entry ------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -434,6 +528,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_sum.add_argument("--days", type=int, default=7, help="session window (default: 7)")
     p_sum.add_argument("--project", help="substring filter on project hash dir name")
     p_sum.set_defaults(func=cmd_summary)
+
+    p_vrf = sub.add_parser("verify", help="verify GRIST installation completeness")
+    p_vrf.add_argument("dir", help="project root to verify")
+    p_vrf.set_defaults(func=cmd_verify)
 
     return ap
 
