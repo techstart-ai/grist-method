@@ -1,0 +1,47 @@
+arch: auth-v2
+prd: prd#auth-v2
+stack:
+  runtime: node20
+  framework: nextjs15
+  db: postgres16
+  cache: redis7
+components:
+  - id: C1
+    name: oidc-broker
+    type: service
+    tech: nestjs
+    responsibilities: [okta-handshake, token-exchange, refresh]
+    deps: [C2, okta]
+  - id: C2
+    name: session-store
+    type: data
+    tech: redis
+    responsibilities: [persist sessions, ttl eviction]
+    deps: []
+    schema: "sess:{uid} → {jwt, refresh, exp}"
+decisions:
+  - id: d1
+    decision: opaque session tokens to client, not raw JWT
+    why: revocation
+    alts:
+      - option: raw JWT in cookie
+        rejected: cannot revoke before exp
+  - id: d2
+    decision: refresh on backend only
+    why: token-leak risk on client
+    alts: []
+interfaces:
+  - id: i1
+    from: client
+    to: C1
+    contract: "POST /auth/okta/callback → 302 + sess cookie"
+    protocol: http
+  - id: i2
+    from: C1
+    to: C2
+    contract: "SET sess:{uid} EX 28800"
+    protocol: other
+nfrs:
+  - p95 < 200ms for /auth/*
+  - audit log every signin
+risks: []

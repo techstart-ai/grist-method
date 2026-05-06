@@ -1,0 +1,89 @@
+# PRD schema — replaces BMAD's PRD.md prose template
+# Filename convention: prd.grist.yaml (per project) or prd-<slug>.grist.yaml (multi-PRD)
+# Authoring: BMAD PM agent emits this directly in /grist design mode.
+# Conversion from existing PRD.md: converters/bmad-prd-to-grist.py
+
+prd: <slug>                      # required, kebab-case, unique within project
+phase: planning                  # planning | solutioning | implementation | done
+inputs:                          # upstream artifact references
+  - brief.md                     # BMAD brief
+  - market-research.md           # optional
+  - domain-research.md           # optional
+
+problem: <one-line problem statement>     # required, plain English, ≤200 chars
+goal: <one-line goal>                     # required, ≤200 chars
+nonGoals:                                 # explicit out-of-scope
+  - <one-line item>
+
+invariants:                               # MUST hold across all stories
+  - <one-line constraint>
+
+# Functional decomposition
+epics:
+  - id: E1                                # required, E<n> numbering
+    title: <one-line epic title>
+    why: <one-line rationale>
+    stories: [S1.1, S1.2, S1.3]           # story IDs, defined in story.grist.yaml files
+
+# Acceptance criteria — project-level. Story-level AC lives in story files.
+acceptance:
+  - id: ac1
+    criterion: <testable statement>
+
+# Risks with mitigations
+risks:
+  - id: r1
+    risk: <one-line risk>
+    mitigation: <one-line mitigation>
+    severity: low|med|high                # optional
+
+# Non-functional requirements
+nfrs:
+  - <one-line NFR>                        # e.g. "p95 < 200ms for /auth/*"
+
+# Stakeholders / approvals — for traceability, not for prose
+stakeholders: []                          # optional, list of role:name
+approvals:
+  pm: <date or null>
+  architect: <date or null>
+  eng-lead: <date or null>
+
+# --- Filled example ---
+# prd: auth-v2
+# phase: planning
+# inputs: [brief.md, market-research.md]
+# problem: enterprise customers blocked on SSO; 3 deals in pipeline gated
+# goal: OIDC-based SSO with Okta first, generic IdP later
+# nonGoals: [SAML, social-login, MFA-redesign]
+# invariants:
+#   - sessions ≤ 8h
+#   - no PII in JWT
+#   - existing email/pwd path unchanged
+# epics:
+#   - id: E1
+#     title: Okta OIDC integration
+#     why: gates 3 enterprise deals
+#     stories: [S1.1, S1.2, S1.3]
+#   - id: E2
+#     title: Session refresh
+#     why: avoid re-prompting 8h+ users
+#     stories: [S2.1, S2.2]
+# acceptance:
+#   - id: ac1
+#     criterion: okta signin works for test tenant
+#   - id: ac2
+#     criterion: refresh transparent to user, no re-prompt
+#   - id: ac3
+#     criterion: logout revokes everywhere
+# risks:
+#   - id: r1
+#     risk: token-rotation race
+#     mitigation: refresh cron + backoff
+#     severity: med
+#   - id: r2
+#     risk: okta downtime
+#     mitigation: cached session 1h grace
+#     severity: low
+# nfrs:
+#   - p95 < 200ms for /auth/*
+#   - audit log every signin/signout

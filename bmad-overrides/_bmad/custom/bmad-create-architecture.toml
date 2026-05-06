@@ -1,0 +1,20 @@
+# GRIST override for bmad-create-architecture.
+# Drop this file at: <project-root>/_bmad/custom/bmad-create-architecture.toml
+
+[workflow]
+
+activation_steps_prepend = []
+
+activation_steps_append = [
+  "Read {project-root}/_bmad/custom/grist-architecture-emission.md and follow it for the rest of this workflow. architecture.grist.yaml is the primary artifact.",
+]
+
+persistent_facts = [
+  "file:{project-root}/_bmad/custom/grist-architecture-emission.md",
+  "file:{project-root}/_bmad/custom/grist-schemas/architecture.grist.yaml",
+  "Output the architecture as architecture.grist.yaml per the loaded schema. Components are IDs (C1, C2…). Decisions live as {id, decision, why, alts} entries — not prose ADRs.",
+  "Reference the PRD by ID (prd#auth-v2, prd#E1) — never re-paste PRD content.",
+  "When step files instruct you to write to architecture.md, ALSO append the structured form to architecture.grist.yaml using the GRIST architecture schema.",
+]
+
+on_complete = "python3 {project-root}/_bmad/custom/grist-scripts/post-arch-to-grist.py {planning_artifacts}/architecture.md"

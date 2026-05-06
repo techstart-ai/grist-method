@@ -1,0 +1,20 @@
+# GRIST override for bmad-create-story.
+# Drop at: <project-root>/_bmad/custom/bmad-create-story.toml
+
+[workflow]
+
+activation_steps_prepend = []
+
+activation_steps_append = [
+  "Read {project-root}/_bmad/custom/grist-story-emission.md and follow it for the rest of this workflow. story-S<n>.<m>.grist.yaml is the primary artifact.",
+]
+
+persistent_facts = [
+  "file:{project-root}/_bmad/custom/grist-story-emission.md",
+  "file:{project-root}/_bmad/custom/grist-schemas/story.grist.yaml",
+  "Output stories as story-S<epic>.<n>.grist.yaml per the loaded schema. Tasks are one-line entries with optional file hints. Acceptance criteria are testable one-liners with auto:true|false flag.",
+  "Reference epic and arch by ID: epic: prd#E1, arch: arch#C1. Never paraphrase or re-paste PRD/architecture content into the story.",
+  "When the step files instruct you to write the story file, ALSO emit the .grist.yaml form using the GRIST story schema.",
+]
+
+on_complete = "python3 {project-root}/_bmad/custom/grist-scripts/post-story-to-grist.py {planning_artifacts}"

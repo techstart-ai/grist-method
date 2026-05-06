@@ -1,0 +1,75 @@
+# Story schema — replaces BMAD's story-N.md prose template
+# Filename convention: story-S<n>.<m>.grist.yaml (one file per story, sharded)
+# Authoring: BMAD PM/SM agent emits this directly in /grist design mode.
+# Dev agent reads in /grist ship mode.
+
+story: S1.1                       # required, S<epic>.<n> numbering
+epic: prd#E1                      # ref to PRD epic
+prd: prd#<slug>                   # ref to PRD root
+arch: arch#C1                     # ref to primary arch component (optional, for traceability)
+
+title: <one-line story title>
+why: <one-line user/business value>      # optional, drop if obvious from epic
+
+# Tasks — implementation breakdown. One line each. Order = execution order.
+tasks:
+  - id: t1
+    do: <one-line action>
+    files: [<path: new|modify>]   # optional, hint for dev agent
+
+# Acceptance criteria — what dev must demo before story closes
+ac:
+  - id: ac1
+    test: <testable statement>
+    auto: true|false              # optional, "is there an automated test"
+
+# Files in scope — flat list, lets dev agent read only these
+files:
+  - path: apps/web/src/auth/okta.ts
+    op: new
+  - path: apps/web/src/middleware.ts
+    op: modify
+
+# Dependencies on other stories
+deps: [S1.0]                      # must complete before this
+
+# Status — single field, BMAD sprint tracker reads this
+status: backlog|in-progress|in-review|done|blocked
+blockers: []                      # one-line each, only if status=blocked
+
+# --- Filled example ---
+# story: S1.1
+# epic: prd#E1
+# prd: prd#auth-v2
+# arch: arch#C1
+# title: Okta OIDC handshake endpoint
+# why: enables enterprise SSO sign-in
+# tasks:
+#   - id: t1
+#     do: POST /auth/okta/callback receives code
+#     files: [apps/web/src/auth/okta.ts]
+#   - id: t2
+#     do: exchange code for tokens via okta SDK
+#     files: [apps/web/src/auth/okta.ts]
+#   - id: t3
+#     do: persist session to C2
+#     files: [apps/web/src/auth/session.ts]
+#   - id: t4
+#     do: set httpOnly cookie
+#     files: [apps/web/src/auth/okta.ts]
+# ac:
+#   - id: ac1
+#     test: callback returns 302 + cookie for valid code
+#     auto: true
+#   - id: ac2
+#     test: callback returns 401 for invalid code
+#     auto: true
+# files:
+#   - path: apps/web/src/auth/okta.ts
+#     op: new
+#   - path: apps/web/src/auth/session.ts
+#     op: new
+#   - path: apps/web/src/middleware.ts
+#     op: modify
+# deps: []
+# status: backlog

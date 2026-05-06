@@ -1,0 +1,105 @@
+# OpenSpec change proposal schema — replaces the 4-file
+# (proposal.md + design.md + tasks.md + specs/) layout with a single YAML.
+# Filename: openspec/changes/<change-id>/change.grist.yaml
+# Authoring: agent emits this in /grist iterate mode.
+
+change: <kebab-id>                # required, e.g. add-okta-mfa
+spec: <feature-slug>              # required, the spec being changed (matches openspec/specs/<feature>/)
+status: proposed|approved|implementing|done|withdrawn
+why: <one-line motivation>        # what triggered this change
+
+# Spec deltas — the contract. Three operations.
+delta:
+  add:                            # new requirements
+    - id: req-N                   # new req id, monotonic in feature
+      req: SHALL <statement>
+      scenarios:
+        - <one-line scenario>
+  modify:                         # changed requirements
+    - id: <existing-req-id>       # ref to spec#<feature>#<req-id>
+      from: <one-line current>
+      to: <one-line new>
+      reason: <one-line>
+  remove:                         # deleted requirements
+    - id: <existing-req-id>
+      reason: <one-line>
+
+# Design — replaces design.md prose
+design:
+  approach: <one-line chosen approach>
+  alts:                           # rejected alternatives, one line each
+    - option: <one-line>
+      rejected: <reason>
+  affects:                        # which arch components this touches
+    - arch#C1
+    - arch#C2
+
+# Tasks — replaces tasks.md
+tasks:
+  - id: t1
+    do: <one-line action>
+    files: [<path: new|modify>]   # optional
+
+# Risks specific to this change (not the whole spec)
+risks:
+  - id: cr1
+    risk: <one-line>
+    mitigation: <one-line>
+
+# Migration — only if change requires data/state migration
+migration:
+  required: true|false
+  steps:                          # only if required
+    - <one-line step>
+  rollback: <one-line>
+
+# --- Filled example ---
+# change: add-okta-mfa
+# spec: auth-login
+# status: proposed
+# why: enterprise tenant requires MFA after SSO; gates 1 deal
+# delta:
+#   add:
+#     - id: req-7
+#       req: SHALL prompt for MFA after okta callback if tenant.mfa_required=true
+#       scenarios:
+#         - tenant has mfa_required=true → user redirected to /mfa
+#         - tenant has mfa_required=false → session issued directly
+#   modify:
+#     - id: req-3
+#       from: session issued after okta callback
+#       to: session issued after mfa pass (if required) or okta callback (if not)
+#       reason: MFA gate inserted into flow
+#   remove: []
+# design:
+#   approach: middleware checks tenant.mfa_required, redirects pre-session
+#   alts:
+#     - option: client-side check
+#       rejected: bypassable
+#     - option: separate endpoint with state passing
+#       rejected: state-mgmt complexity
+#   affects:
+#     - arch#C1
+# tasks:
+#   - id: t1
+#     do: add tenant.mfa_required column
+#     files: [migrations/0042_tenant_mfa.sql]
+#   - id: t2
+#     do: middleware MFA gate
+#     files: [apps/web/src/middleware.ts]
+#   - id: t3
+#     do: /mfa route + verifier
+#     files: [apps/web/src/auth/mfa.ts]
+#   - id: t4
+#     do: e2e test for both paths
+#     files: [tests/e2e/auth-mfa.spec.ts]
+# risks:
+#   - id: cr1
+#     risk: existing tenants without column default to false unexpectedly
+#     mitigation: backfill default = tenant.plan == 'enterprise'
+# migration:
+#   required: true
+#   steps:
+#     - add column tenant.mfa_required bool default false
+#     - backfill enterprise tenants to true
+#   rollback: drop column; sessions revert to pre-mfa flow

@@ -1,0 +1,54 @@
+# GRIST always-on rules
+
+Apply on every response unless user says "stop grist" / "normal mode".
+
+## Coding-phase output (when editing files, running tests, fixing bugs)
+
+Banned:
+- Preambles: "Let me", "I'll now", "First I'll", "Sure, I can help"
+- End-of-turn summaries: "I've updated X to do Y" — the diff shows it
+- Task restatement: don't paraphrase the request before acting
+- Apologies, pleasantries, hedging
+
+Allowed:
+- One-line state-change announcements at key moments ("found root cause in auth.ts:42", "tests pass")
+- Direct questions when blocked
+
+## Read discipline
+
+- Never read whole file >300 lines without an explicit line range
+- Quote ≤5 lines from any doc you loaded — reference rest by `path:line`
+- Sub-agent / search output: receive only `path:line — symbol — note` lines, never raw file dumps
+- Tool output >500 tokens: summarize before quoting
+
+## Address-by-ID
+
+When BMAD or OpenSpec artifacts are present, refer to slices by ID:
+
+- `prd#E1.S1.1` not "the first story under epic 1"
+- `arch#C2` not "the session store component"
+- `spec#auth-login#req-12` not "the login spec MFA requirement"
+- `story#S1.1` not "the okta callback story"
+
+## Artifact emission
+
+When asked to write a PRD, architecture doc, story, or OpenSpec change proposal: emit `.grist.yaml` form per the schema in `schemas/`. Do not write prose markdown unless the user explicitly says "as prose" or "for stakeholders".
+
+## Auto-clarity exception
+
+Drop terse mode and use normal prose for:
+- Security warnings
+- Irreversible-action confirmations (deletes, force-push, destructive migrations)
+- Multi-step sequences where fragment ambiguity risks misread
+- User asks same question twice or signals confusion
+
+Resume after.
+
+## Cache hygiene
+
+If `.grist/context-pack.md` exists, load once. Don't re-quote its contents back to the user. Reference by section heading.
+
+## Chat compression
+
+Drop: articles, filler (just/really/basically/actually), pleasantries, hedging.
+Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress.

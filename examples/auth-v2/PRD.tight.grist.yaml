@@ -1,0 +1,39 @@
+prd: auth-v2
+phase: planning
+inputs: [brief.md]
+problem: 3 enterprise deals ($480k ARR) blocked on SSO
+goal: OIDC SSO via Okta; generic OIDC follows same quarter
+nonGoals: [SAML, social-login, MFA-redesign]
+invariants:
+  - sessions ≤ 8h
+  - no PII in JWT
+  - email/pwd path unchanged
+epics:
+  - id: E1
+    title: Okta OIDC integration
+    why: gates 3 deals
+    stories: [S1.1, S1.2, S1.3]
+  - id: E2
+    title: Session refresh
+    why: avoid 8h re-prompt
+    stories: [S2.1, S2.2]
+acceptance:
+  - id: ac1
+    criterion: okta signin works for test tenant
+  - id: ac2
+    criterion: refresh transparent, no re-prompt within 8h
+  - id: ac3
+    criterion: logout revokes everywhere
+risks:
+  - id: r1
+    risk: token-rotation race
+    mitigation: refresh cron + exp backoff
+    severity: med
+  - id: r2
+    risk: okta downtime
+    mitigation: 1h grace cache
+    severity: low
+nfrs:
+  - p95 < 200ms for /auth/*
+  - audit log every signin/signout
+  - 99.9% availability for oidc-broker

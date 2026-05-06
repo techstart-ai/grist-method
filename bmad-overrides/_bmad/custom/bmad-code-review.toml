@@ -1,0 +1,30 @@
+# GRIST override for bmad-code-review.
+# Drop at: <project-root>/_bmad/custom/bmad-code-review.toml
+#
+# Effect:
+#   1. Sub-agent (Blind / Edge / Auditor) outputs use line-format findings,
+#      not multi-paragraph markdown.
+#   2. Findings written to review-<story_key>.grist.yaml in addition to (or
+#      instead of) the in-story markdown bullets.
+#   3. /grist ship style for chat output throughout.
+#   4. on_complete writes the structured review YAML.
+
+[workflow]
+
+activation_steps_prepend = []
+
+activation_steps_append = [
+  "Read {project-root}/_bmad/custom/grist-code-review-emission.md and follow it for the rest of this workflow run. Apply /grist ship style throughout.",
+]
+
+persistent_facts = [
+  "file:{project-root}/_bmad/custom/grist-code-review-emission.md",
+  "file:{project-root}/_bmad/custom/grist-schemas/review.grist.yaml",
+  "Spec source of truth: if the spec_file ends in .md, look for a sibling .grist.yaml first. If present, treat the YAML as the spec — pass it to the Acceptance Auditor instead of the prose .md.",
+  "Sub-agent prompts (Blind Hunter, Edge Case Hunter, Acceptance Auditor) MUST instruct each subagent to output findings in line format: '<path>:<line> — <severity> — <one-line problem>. <one-line fix>.' One finding per line. No multi-paragraph descriptions. JSON-array output is also acceptable for Edge Case Hunter (its native format).",
+  "Operating in /grist ship style. BANNED: preambles, end-of-turn summaries beyond the count line, restating the diff before reviewing, apologies.",
+  "Findings written to story file (markdown bullets) AND to review-<story_key>.grist.yaml per the loaded schema. The YAML is the long-term record; future review passes reference it by id.",
+  "Read discipline: never load full files when line numbers in the diff suffice. Quote diff hunks, not whole files.",
+]
+
+on_complete = "python3 {project-root}/_bmad/custom/grist-scripts/post-code-review.py {planning_artifacts} {implementation_artifacts}"

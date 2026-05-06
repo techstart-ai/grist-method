@@ -1,0 +1,35 @@
+story: S1.1
+epic: prd#E1
+prd: prd#auth-v2
+arch: arch#C1
+title: Okta OIDC handshake endpoint
+why: enables enterprise SSO sign-in
+tasks:
+  - id: t1
+    do: POST /auth/okta/callback receives code
+    files: [apps/web/src/auth/okta.ts]
+  - id: t2
+    do: exchange code for tokens via okta SDK
+    files: [apps/web/src/auth/okta.ts]
+  - id: t3
+    do: persist session to C2
+    files: [apps/web/src/auth/session.ts]
+  - id: t4
+    do: set httpOnly cookie
+    files: [apps/web/src/auth/okta.ts]
+ac:
+  - id: ac1
+    test: callback returns 302 + cookie for valid code
+    auto: true
+  - id: ac2
+    test: callback returns 401 for invalid code
+    auto: true
+files:
+  - path: apps/web/src/auth/okta.ts
+    op: new
+  - path: apps/web/src/auth/session.ts
+    op: new
+  - path: apps/web/src/middleware.ts
+    op: modify
+deps: []
+status: backlog

@@ -1,0 +1,38 @@
+prd: auth-v2
+phase: planning
+inputs: []
+problem: Enterprise customers cannot use the product because we do not support SSO. Three deals worth a combined $480k ARR are blocked in procurement awaiting OIDC support. Every week we delay loses one expansion conversation.
+goal: Ship OIDC-based SSO with Okta as the first IdP, generic OIDC support to follow within the same quarter. The existing email/password path must continue to work for non-enterprise tenants without behavioural change.
+nonGoals:
+  - SAML support (slated for next quarter)
+  - Social login (Google/GitHub) — not requested by enterprise pipeline
+  - MFA redesign (current TOTP flow remains)
+invariants:
+  - Sessions must not exceed 8h without re-auth
+  - No PII in JWT claims
+  - Existing email/password path unchanged for free-tier tenants
+epics:
+  - id: E1
+    title: Okta OIDC integration
+    stories: [S1.1, S1.2, S1.3]
+  - id: E2
+    title: Session refresh
+    stories: [S2.1, S2.2]
+acceptance:
+  - id: ac1
+    criterion: Okta sign-in works end-to-end for the test tenant
+  - id: ac2
+    criterion: Refresh is transparent to the user — no re-prompt within 8h
+  - id: ac3
+    criterion: Logout revokes the session everywhere (no zombie tokens)
+risks:
+  - id: r1
+    risk: Token rotation race
+    mitigation: mitigation is a refresh cron with exponential backoff
+  - id: r2
+    risk: Okta downtime
+    mitigation: mitigation is a 1h grace cache for valid sessions
+nfrs:
+  - "p95 latency under 200ms for /auth/* endpoints"
+  - Audit log every signin and signout event
+  - 99.9% availability for the OIDC broker

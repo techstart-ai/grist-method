@@ -1,0 +1,11 @@
+# Example openspec/config.yaml — activates the grist schema project-wide.
+# Drop this file at: <project-root>/openspec/config.yaml
+# (The OpenSpec installer creates a default config.yaml; this overrides it.)
+
+schema: grist
+
+# Optional — the full schema search order is:
+#   1. CLI flag        --schema grist
+#   2. Change metadata openspec/changes/<change>/.openspec.yaml
+#   3. This file       openspec/config.yaml
+#   4. Built-in        spec-driven (fallback)

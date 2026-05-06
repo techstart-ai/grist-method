@@ -1,0 +1,104 @@
+# Architecture schema — replaces BMAD's architecture.md prose template
+# Filename convention: architecture.grist.yaml
+# Authoring: BMAD Architect agent emits this directly in /grist design mode.
+
+arch: <slug>                      # required, matches prd slug or own slug
+prd: prd#<slug>                   # required, ref to PRD
+
+# Stack — flat dict, one line per category
+stack:
+  runtime: <e.g. node20>
+  framework: <e.g. nextjs15>
+  db: <e.g. postgres16>
+  cache: <e.g. redis7>
+  queue: <e.g. sqs>
+  iac: <e.g. terraform-aws>
+
+# Components — units of deployable or logical isolation
+components:
+  - id: C1                        # required, C<n> numbering
+    name: <kebab-case-name>
+    type: service|data|ui|external|lib    # required
+    tech: <e.g. nestjs, react, postgres>
+    responsibilities:
+      - <one-line responsibility>
+    deps: [C2, redis, okta]       # IDs of other components, or external systems
+    schema: <one-line, optional>  # for data components, e.g. "sess:{uid} → {jwt, refresh, exp}"
+
+# Decisions — capture WHY. Replaces the long "Architecture Decisions" prose section.
+decisions:
+  - id: d1
+    decision: <one-line decision>
+    why: <one-line rationale>
+    alts:                         # rejected alternatives
+      - option: <one-line>
+        rejected: <one-line reason>
+
+# Interfaces — contract surface between components or to external clients
+interfaces:
+  - id: i1
+    from: C1                      # source component or "client"
+    to: C2                        # target component or external
+    contract: <one-line>          # e.g. "POST /auth/okta/callback → 302 + sess cookie"
+    protocol: http|grpc|queue|fs|other
+
+# NFRs — measurable, testable
+nfrs:
+  - <one-line NFR>                # e.g. "p95 < 200ms for /auth/*"
+
+# Risks — architecture-level (different from PRD risks which are product-level)
+risks:
+  - id: ar1
+    risk: <one-line>
+    mitigation: <one-line>
+
+# --- Filled example ---
+# arch: auth-v2
+# prd: prd#auth-v2
+# stack:
+#   runtime: node20
+#   framework: nextjs15
+#   db: postgres16
+#   cache: redis7
+# components:
+#   - id: C1
+#     name: oidc-broker
+#     type: service
+#     tech: nestjs
+#     responsibilities:
+#       - okta handshake
+#       - token exchange
+#       - refresh
+#     deps: [C2, okta]
+#   - id: C2
+#     name: session-store
+#     type: data
+#     tech: redis
+#     responsibilities: [persist sessions, ttl-based eviction]
+#     deps: []
+#     schema: "sess:{uid} → {jwt, refresh, exp}"
+# decisions:
+#   - id: d1
+#     decision: opaque session tokens to client, not raw JWT
+#     why: revocation
+#     alts:
+#       - option: raw JWT in cookie
+#         rejected: cannot revoke before exp
+#   - id: d2
+#     decision: refresh on backend only
+#     why: token-leak risk on client
+#     alts: []
+# interfaces:
+#   - id: i1
+#     from: client
+#     to: C1
+#     contract: "POST /auth/okta/callback → 302 + sess cookie"
+#     protocol: http
+#   - id: i2
+#     from: C1
+#     to: C2
+#     contract: "SET sess:{uid} EX 28800"
+#     protocol: other
+# nfrs:
+#   - p95 < 200ms for /auth/*
+#   - audit log every signin

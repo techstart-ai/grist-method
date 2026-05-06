@@ -1,0 +1,16 @@
+description = "Activate GRIST mode for BMAD/OpenSpec workflows: design (planning), iterate (specs), ship (coding)"
+prompt = """
+Activate GRIST mode: {{args}}.
+
+If args is empty or 'ship': /grist ship — coding phase. Ultra-terse chat. ZERO compression in code/tests/commits. Banned: preambles ('Let me', 'I'll now', 'First I'll'), end-of-turn summaries, task restatement, apologies. Read discipline: never read whole file >300 lines, quote ≤5 lines, refer rest by path:line. Sub-agent searches return path:line — symbol — note only.
+
+If args is 'design': /grist design — BMAD Analysis/Planning/Solutioning. Lite chat (drop filler, keep sentences for stakeholder readability). Emit PRD/Architecture/Story as .grist.yaml structured form per schemas/, NOT prose markdown. Reasoning preserved in `why:` and `alts:` fields. No narration before/after artifact writes. Reference upstream artifacts by ID (prd#E1, arch#C1, brief#problem) — never paraphrase or re-paste.
+
+If args is 'iterate': /grist iterate — OpenSpec change proposals. Ultra chat. Single change.grist.yaml replaces 4-file (proposal/design/tasks/specs) layout. Refuse to re-paste existing openspec/specs/<feature>/spec.md — reference by spec#<feature>#<req-id>. Spec deltas (add/modify/remove) are the contract. Design rationale lives in design.approach + design.alts, not prose.
+
+If args is 'off': stop GRIST. Resume normal prose.
+
+Always-on across all modes: auto-clarity exception (drop terse for security warnings, irreversible ops, multi-step ambiguity, repeated questions). Cache hygiene: load .grist/context-pack.md once per session, don't re-quote. Address by ID always.
+
+Persist this mode for the rest of the session. Do not drift.
+"""

@@ -1,0 +1,119 @@
+name: grist
+version: 1
+description: |
+  Token-efficient OpenSpec workflow. Replaces the 4-file (proposal.md +
+  design.md + tasks.md + specs/) layout with a single change.grist.yaml that
+  carries proposal + design + spec deltas + tasks. A thin tasks.md is
+  emitted alongside so OpenSpec's apply phase can still track checkboxes.
+
+  Targets per-change tokens: typical OpenSpec change set is 3-8kb of prose
+  across 4 files. The grist equivalent lands at 400-800 bytes — 5-15× cut
+  per change, compounding across iterations.
+
+artifacts:
+  - id: change
+    generates: change.grist.yaml
+    description: Single-file structured change record (proposal + design + spec deltas + tasks)
+    template: change.grist.yaml
+    instruction: |
+      Emit ONE YAML document at change.grist.yaml conforming to the GRIST
+      change schema. The file replaces the spec-driven schema's proposal.md +
+      design.md + tasks.md + specs/<capability>/spec.md set.
+
+      Required top-level fields:
+        change:    kebab-id matching the change folder name
+        spec:      target spec slug (the capability being changed)
+        status:    proposed | approved | implementing | done | withdrawn
+        why:       one-line motivation, ≤200 chars
+        delta:
+          add:     [] or list of {id, req, scenarios: [...]}
+          modify:  [] or list of {id, from, to, reason}
+          remove:  [] or list of {id, reason}
+        design:
+          approach: one-line chosen approach
+          alts:     [] or list of {option, rejected: <reason>}
+          affects:  list of arch component refs (arch#C1 etc.)
+        tasks:     list of {id, do, files: [...]}
+        risks:     [] or list of {id, risk, mitigation}
+        migration:
+          required: bool
+          steps:    list (only if required)
+          rollback: one-line (only if required)
+
+      Style rules:
+        - One-line strings for problem/why/approach/etc. ≤200 chars.
+        - Reference existing specs by ID (spec#<feature>#req-<n>), never re-paste.
+        - Spec deltas use SHALL / MUST in `req:` text. Scenarios are one-liners.
+        - Design rationale lives in `design.approach` + `design.alts`. No prose
+          paragraphs.
+        - Tasks: imperative one-liners. `do:` field is the action. `files:`
+          field is the read/write scope.
+        - Reasoning preserved in `reason:` and `alts[].rejected:` fields.
+
+      Reference the loaded schemas/change.grist.yaml for the full filled
+      example.
+    requires: []
+
+  - id: tasks
+    generates: tasks.md
+    description: Checkbox mirror of change.grist.yaml.tasks (for /opsx:apply tracking)
+    template: tasks.md
+    instruction: |
+      Read change.grist.yaml. For each entry under `tasks:`, emit one checkbox
+      line in tasks.md using the format OpenSpec's apply phase parses:
+
+        ## 1. Implementation
+
+        - [ ] 1.<n> <task.do>
+
+      Where <n> is the task index (1-based) and <task.do> is the `do:` field
+      from the YAML.
+
+      No other content. No prose. No section headers beyond the single
+      "## 1. Implementation". This file is a tracker, not a design doc —
+      the design lives in change.grist.yaml.
+
+      When tasks complete, /opsx:apply checks them off here. The agent
+      should ALSO update change.grist.yaml.tasks[i].done: true to keep the
+      YAML source of truth in sync.
+    requires:
+      - change
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Read change.grist.yaml as primary context — it contains the spec deltas,
+    design, and full task list with `files:` hints. Use tasks.md only for
+    checkbox tracking.
+
+    When checking off a task:
+      1. Set the box in tasks.md to [x]
+      2. Set tasks[i].done: true in change.grist.yaml
+
+    Operating mode: /grist ship.
+      - No preambles ("Let me", "I'll now", "First I'll").
+      - No end-of-turn summaries describing what you did. The diff IS the record.
+      - No task restatement.
+      - Code, tests, comments, commits: zero compression — normal style.
+      - Compression rules apply only to chat output and YAML metadata fields.
+      - Read discipline: never read whole files >300 lines without a line range.
+      - Quote ≤5 lines from any doc; reference rest by path:line.
+
+    On blockers, halt and ask. Don't speculate.
+
+archive:
+  instruction: |
+    On archive, merge change.grist.yaml.delta into the long-lived specs:
+
+      For each entry in delta.add, delta.modify, delta.remove, locate the
+      target spec at openspec/specs/<spec>/spec.grist.yaml (preferred) or
+      openspec/specs/<spec>/spec.md (legacy fallback) and apply.
+
+      If target is .grist.yaml: structural merge — append/replace req entries.
+      If target is .md: best-effort markdown merge using OpenSpec's standard
+      archive logic; downstream agents will read the .md until you migrate
+      to .grist.yaml via openspec-spec-to-grist.py.
+
+    After merge, move the change folder to openspec/changes/archive/<date>-<change-id>/
+    as OpenSpec normally does.

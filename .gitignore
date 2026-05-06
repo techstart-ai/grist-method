@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Local environment
+.env
+.env.local
+.env.*.local
+
+# OS
+**/.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code worktrees (local dev only — not part of the project)
+.claude/worktrees/
+
+# GRIST runtime artifacts (per-user / per-session, not committed)
+.grist/
+
+# Build / packaging output
+dist/
+build/
+*.egg

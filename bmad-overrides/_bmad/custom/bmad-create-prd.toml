@@ -1,0 +1,31 @@
+# GRIST override for bmad-create-prd.
+# Drop this file at: <project-root>/_bmad/custom/bmad-create-prd.toml
+# Overlay only — does not fork BMAD source.
+#
+# Effect:
+#   1. Loads grist-emission-rules.md as persistent fact -> agent emits the
+#      structured YAML form alongside (or instead of) prose during the run.
+#   2. After Step 12 completes and prd.md is written, runs the post-converter
+#      to emit prd.grist.yaml next to it.
+
+[workflow]
+
+activation_steps_prepend = []
+
+# Run after greet, before workflow begins -- prime the agent for terse output.
+activation_steps_append = [
+  "Read {project-root}/_bmad/custom/grist-prd-emission.md and follow it for the rest of this workflow. The structured PRD output (prd.grist.yaml) is the primary artifact; prose prd.md remains as a stakeholder-facing rendering only.",
+]
+
+# Foundational context loaded on activation. Appends to BMAD's defaults.
+persistent_facts = [
+  "file:{project-root}/_bmad/custom/grist-prd-emission.md",
+  "file:{project-root}/_bmad/custom/grist-schemas/prd.grist.yaml",
+  "Output the PRD as prd.grist.yaml per the loaded schema. Do not write prose paragraphs for problem/goal/risks — write one-line fields. Reasoning lives in `why:` fields, not narrative text.",
+  "Reference upstream artifacts by ID: brief#problem, prd#E1, arch#C1. Never paraphrase or re-paste source artifacts.",
+  "When step files instruct you to write a section to prd.md, ALSO append the structured form to prd.grist.yaml in the same directory using the GRIST PRD schema.",
+]
+
+# Runs at Step 12. Converts prd.md to prd.grist.yaml if the agent didn't
+# already produce it natively, then validates the YAML.
+on_complete = "python3 {project-root}/_bmad/custom/grist-scripts/post-prd-to-grist.py {planning_artifacts}/prd.md"

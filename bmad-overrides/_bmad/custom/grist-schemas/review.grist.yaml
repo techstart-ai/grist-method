@@ -1,0 +1,83 @@
+# Review findings schema — replaces the markdown-bullet "Review Findings"
+# section that bmad-code-review appends to story files.
+# Filename: review-<story_key>.grist.yaml (one per review pass)
+# Authoring: bmad-code-review on_complete hook emits this. Also referenced
+# by future review passes so prior findings are addressable without
+# re-reading the prose story.
+
+review: <story_key>                # required, matches the story (e.g. S1.1 or 1-2-user-auth)
+story: prd#<slug>#<story_key>      # ref to story
+date: <YYYY-MM-DD>
+mode: full|no-spec                 # matches bmad-code-review's review_mode
+diff_source: <ref>                 # branch, commit range, PR url, or "uncommitted"
+spec: <path or null>               # spec file used by Acceptance Auditor (prefer .grist.yaml)
+
+# Layers that ran. Non-running layers go in `failed_layers`.
+layers_ran: [blind, edge, auditor]
+failed_layers: []                  # one of [blind, edge, auditor], empty if none failed
+
+# Findings — flat list, post-triage. Each has id, classification, location, one-line title + detail.
+findings:
+  - id: f1                         # required, sequential
+    class: patch|decision-needed|defer|dismiss   # required, post-triage classification
+    severity: low|med|high|crit    # optional, agent-judged
+    source: blind|edge|auditor|<merged>   # which layer raised it (e.g. "blind+edge")
+    loc: <path:line>               # required if known
+    title: <one-line>              # required
+    detail: <one-line>             # required, ≤200 chars
+    fix: <one-line>                # required for patch, optional otherwise
+    ac_ref: ac<n>                  # optional, only for auditor findings — which AC violated
+
+# Counts for summary
+counts:
+  decision_needed: 0
+  patch: 0
+  defer: 0
+  dismissed: 0
+
+# Resolution tracking — populated as findings are addressed
+resolutions:
+  - finding: f1
+    status: pending|resolved|deferred|wontfix
+    resolved_in: <commit-sha or null>
+    note: <one-line, optional>
+
+# --- Filled example ---
+# review: S1.1
+# story: prd#auth-v2#S1.1
+# date: 2026-05-06
+# mode: full
+# diff_source: feature/auth-v2-okta
+# spec: planning-artifacts/story-S1.1.grist.yaml
+# layers_ran: [blind, edge, auditor]
+# failed_layers: []
+# findings:
+#   - id: f1
+#     class: patch
+#     severity: high
+#     source: blind+edge
+#     loc: apps/web/src/auth/okta.ts:42
+#     title: token exchange swallows network errors
+#     detail: catch block returns null instead of propagating; downstream sees fake "no session"
+#     fix: re-throw or return tagged error result
+#   - id: f2
+#     class: decision-needed
+#     severity: med
+#     source: auditor
+#     loc: apps/web/src/middleware.ts:18
+#     title: session refresh skips audit log
+#     detail: ac3 requires audit on every signin/signout; refresh path bypasses logger
+#     ac_ref: ac3
+#   - id: f3
+#     class: defer
+#     severity: low
+#     source: edge
+#     loc: apps/web/src/auth/session.ts:7
+#     title: redis client created per request
+#     detail: pre-existing; not introduced by this change
+# counts:
+#   decision_needed: 1
+#   patch: 1
+#   defer: 1
+#   dismissed: 2
+# resolutions: []

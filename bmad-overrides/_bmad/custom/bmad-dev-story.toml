@@ -1,0 +1,30 @@
+# GRIST override for bmad-dev-story.
+# Drop at: <project-root>/_bmad/custom/bmad-dev-story.toml
+#
+# Effect:
+#   1. Agent prefers story-<key>.grist.yaml over the prose .md as source of truth.
+#   2. /grist ship rules apply: no preambles, no end-summaries, no task restatement.
+#   3. Read discipline: never read full files >300 lines without line ranges.
+#   4. Status updates write to YAML (status, task done flags) — append-only, cheap.
+#   5. on_complete validates YAML reflects implementation (status=done, all tasks done).
+
+[workflow]
+
+activation_steps_prepend = []
+
+activation_steps_append = [
+  "Read {project-root}/_bmad/custom/grist-dev-story-emission.md and follow it for the rest of this workflow run. Apply /grist ship style throughout.",
+]
+
+persistent_facts = [
+  "file:{project-root}/_bmad/custom/grist-dev-story-emission.md",
+  "file:{project-root}/_bmad/custom/grist-schemas/story.grist.yaml",
+  "Source of truth for the story is story-<key>.grist.yaml. Read prose story-<key>.md ONLY if the YAML is missing. When updating story status or task completion, write to the YAML — set status field, set tasks[i].done: true. Append-only.",
+  "Operating in /grist ship style. BANNED: preambles ('Let me', 'I'll now', 'First I'll', 'Sure'), end-of-turn summaries describing what you just did, task restatement before acting, apologies, pleasantries.",
+  "Read discipline: never read whole files >300 lines without an explicit line range. Quote ≤5 lines from any doc loaded; reference rest by path:line. Sub-agent search returns path:line — symbol — note only.",
+  "Code, tests, comments, and commit messages: ZERO compression. Normal style. Compression rules apply ONLY to chat output and metadata fields in story.grist.yaml.",
+  "Reference upstream by ID: prd#<slug>#E<n>, arch#C<n>, story#S<n>.<m>. Never re-quote upstream prose.",
+  "When sprint-status.yaml is read, parse only the entry for the active story_key. Do not re-emit the whole file's contents into chat.",
+]
+
+on_complete = "python3 {project-root}/_bmad/custom/grist-scripts/post-dev-story.py {planning_artifacts}"

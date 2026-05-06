@@ -1,0 +1,54 @@
+# Change record — replaces OpenSpec's proposal.md + design.md + tasks.md + specs/
+# Filled by /opsx:propose under schema=grist.
+# Schema reference: schemas/change.grist.yaml
+
+change: <kebab-change-id>          # required, matches folder name
+spec: <feature-slug>               # required, capability being changed
+status: proposed                   # proposed | approved | implementing | done | withdrawn
+why: <one-line motivation, ≤200 chars>
+
+# Spec deltas — the contract between proposal and existing specs.
+delta:
+  add:                             # new requirements
+    - id: req-N                    # new req id, monotonic in feature
+      req: SHALL <statement>       # use SHALL/MUST
+      scenarios:
+        - <one-line WHEN/THEN>     # WHEN <trigger> THEN <outcome>
+  modify:                          # changed requirements
+    - id: <existing-req-id>
+      from: <one-line current>
+      to: <one-line new>
+      reason: <one-line>
+  remove:                          # deleted requirements
+    - id: <existing-req-id>
+      reason: <one-line>
+
+# Design — one-liners, not paragraphs. Replaces design.md prose.
+design:
+  approach: <one-line chosen approach>
+  alts:                            # rejected alternatives
+    - option: <one-line>
+      rejected: <one-line reason>
+  affects:                         # arch components touched (use arch#C<n> refs)
+    - arch#C<n>
+
+# Tasks — implementation work. Mirrored to tasks.md as checkboxes for /opsx:apply.
+tasks:
+  - id: t1
+    do: <one-line imperative action>
+    files:                         # optional, read/write scope hint
+      - path: <path>
+        op: new|modify
+    done: false                    # set true on completion (also tick tasks.md)
+
+# Risks specific to this change (not the whole spec).
+risks: []
+# - id: cr1
+#   risk: <one-line>
+#   mitigation: <one-line>
+
+# Migration — only if change requires data/state migration.
+migration:
+  required: false
+  # steps:    [<one-line step>]
+  # rollback: <one-line>
