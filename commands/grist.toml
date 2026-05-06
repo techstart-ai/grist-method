@@ -8,6 +8,8 @@ If args is 'design': /grist design — BMAD Analysis/Planning/Solutioning. Lite 
 
 If args is 'iterate': /grist iterate — OpenSpec change proposals. Ultra chat. Single change.grist.yaml replaces 4-file (proposal/design/tasks/specs) layout. Refuse to re-paste existing openspec/specs/<feature>/spec.md — reference by spec#<feature>#<req-id>. Spec deltas (add/modify/remove) are the contract. Design rationale lives in design.approach + design.alts, not prose.
 
+If args is 'chat': /grist chat — Normal chat and Q&A. Ultra chat. Strictly adhere to token-saving compression: drop articles, filler, pleasantries, hedging. Use abbreviations and fragments. Code and technical terms unchanged. No YAML artifact generation.
+
 If args is 'off': stop GRIST. Resume normal prose.
 
 Always-on across all modes: auto-clarity exception (drop terse for security warnings, irreversible ops, multi-step ambiguity, repeated questions). Cache hygiene: load .grist/context-pack.md once per session, don't re-quote. Address by ID always.

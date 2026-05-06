@@ -62,7 +62,7 @@ Copy `rules/grist-activate.md` into your agent's rule directory:
 | Copilot | `.github/copilot-instructions.md` | (append) |
 | Claude Code | `~/.claude/skills/grist/SKILL.md` | (paste `skills/grist/SKILL.md`) |
 
-Activate per session with `/grist design`, `/grist iterate`, or `/grist ship`.
+Activate per session with `/grist chat`, `/grist design`, `/grist iterate`, or `/grist ship`.
 
 ### Measure impact
 
@@ -85,7 +85,7 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 
 ```
 .
-├── skills/grist/SKILL.md       # Three-mode behavior spec (design / iterate / ship)
+├── skills/grist/SKILL.md       # Four-mode behavior spec (chat / design / iterate / ship)
 ├── rules/grist-activate.md     # Always-on rules for Cursor / Windsurf / Claude / Cline / Copilot
 ├── schemas/                    # YAML schemas for all artifact types
 │   ├── prd.grist.yaml          # BMAD product requirements doc
@@ -125,12 +125,13 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 
 ## How it works
 
-### Three modes
+### Four modes
 
-GRIST runs in one of three modes, each tuned to a phase of your workflow:
+GRIST runs in one of four modes, each tuned to a phase of your workflow:
 
 | Mode | Phase | Behavior |
 |---|---|---|
+| `/grist chat` | General Q&A / Debugging | Normal chat. Token saving mode matching the "caveman" style. Ultra-terse chat, no YAML artifact generation. |
 | `/grist design` | BMAD Analysis / Planning / Solutioning | Lite chat. Emit PRDs, Architecture, Stories as structured YAML. No narration before/after artifact writes. |
 | `/grist iterate` | OpenSpec change proposals | Ultra chat. Single `change.grist.yaml` replaces 4-file proposal. Reference specs by ID; never re-paste. |
 | `/grist ship` | Implementation | Ultra chat. Zero compression in code/tests/commits. No preambles, no end-of-turn summaries, no task restatement. Read-discipline rules. |
