@@ -8,13 +8,33 @@
 
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <openspec-project-root>" >&2
+usage() {
+  echo "usage: $0 <openspec-project-root> [--dry-run] [--uninstall]" >&2
   echo "  drops openspec/schemas/grist/ + scripts/ into the project" >&2
   exit 2
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
 fi
 
-PROJECT_ROOT="$(cd "$1" && pwd)"
+PROJECT_ROOT=""
+DRY_RUN=false
+UNINSTALL=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run)   DRY_RUN=true ;;
+    --uninstall) UNINSTALL=true ;;
+    --help|-h)   usage ;;
+    *)           PROJECT_ROOT="$(cd "$arg" 2>/dev/null && pwd)" || { echo "error: dir not found: $arg" >&2; exit 1; } ;;
+  esac
+done
+
+if [[ -z "$PROJECT_ROOT" ]]; then
+  usage
+fi
+
 SRC_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 if [[ ! -d "$PROJECT_ROOT/openspec" ]]; then
@@ -23,32 +43,64 @@ if [[ ! -d "$PROJECT_ROOT/openspec" ]]; then
   exit 1
 fi
 
-mkdir -p "$PROJECT_ROOT/openspec/schemas/grist/templates" \
-         "$PROJECT_ROOT/openspec/scripts"
+if $UNINSTALL; then
+  echo "Uninstalling GRIST OpenSpec schema from $PROJECT_ROOT"
+  if $DRY_RUN; then
+    echo "[dry-run] Would remove openspec/schemas/grist/"
+    echo "[dry-run] Would remove openspec/scripts/openspec-spec-to-grist.py"
+  else
+    rm -rf "$PROJECT_ROOT/openspec/schemas/grist"
+    rm -f "$PROJECT_ROOT/openspec/scripts/openspec-spec-to-grist.py"
+    echo "Removed GRIST schemas and scripts."
+    echo "Note: openspec/config.yaml was left untouched to preserve your configuration."
+  fi
+  exit 0
+fi
+
+if $DRY_RUN; then
+  echo "[dry-run] Would create openspec/schemas/grist/templates"
+  echo "[dry-run] Would create openspec/scripts"
+else
+  mkdir -p "$PROJECT_ROOT/openspec/schemas/grist/templates" \
+           "$PROJECT_ROOT/openspec/scripts"
+fi
 
 # 1. Schema files — always overwrite (GRIST-controlled)
-cp "$SRC_ROOT/schemas/grist/schema.yaml" \
-   "$PROJECT_ROOT/openspec/schemas/grist/schema.yaml"
-echo "wrote: openspec/schemas/grist/schema.yaml"
+if $DRY_RUN; then
+  echo "[dry-run] Would write: openspec/schemas/grist/schema.yaml"
+  echo "[dry-run] Would write: openspec/schemas/grist/README.md"
+else
+  cp "$SRC_ROOT/schemas/grist/schema.yaml" \
+     "$PROJECT_ROOT/openspec/schemas/grist/schema.yaml"
+  echo "wrote: openspec/schemas/grist/schema.yaml"
 
-cp "$SRC_ROOT/schemas/grist/README.md" \
-   "$PROJECT_ROOT/openspec/schemas/grist/README.md"
-echo "wrote: openspec/schemas/grist/README.md"
+  cp "$SRC_ROOT/schemas/grist/README.md" \
+     "$PROJECT_ROOT/openspec/schemas/grist/README.md"
+  echo "wrote: openspec/schemas/grist/README.md"
+fi
 
 for f in change.grist.yaml tasks.md; do
-  cp "$SRC_ROOT/schemas/grist/templates/$f" \
-     "$PROJECT_ROOT/openspec/schemas/grist/templates/$f"
-  echo "wrote: openspec/schemas/grist/templates/$f"
+  if $DRY_RUN; then
+    echo "[dry-run] Would write: openspec/schemas/grist/templates/$f"
+  else
+    cp "$SRC_ROOT/schemas/grist/templates/$f" \
+       "$PROJECT_ROOT/openspec/schemas/grist/templates/$f"
+    echo "wrote: openspec/schemas/grist/templates/$f"
+  fi
 done
 
 # 2. Conversion script — always overwrite
-cp "$SRC_ROOT/scripts/openspec-spec-to-grist.py" \
-   "$PROJECT_ROOT/openspec/scripts/openspec-spec-to-grist.py"
-chmod +x "$PROJECT_ROOT/openspec/scripts/openspec-spec-to-grist.py"
-echo "wrote: openspec/scripts/openspec-spec-to-grist.py"
+if $DRY_RUN; then
+  echo "[dry-run] Would write: openspec/scripts/openspec-spec-to-grist.py"
+else
+  cp "$SRC_ROOT/scripts/openspec-spec-to-grist.py" \
+     "$PROJECT_ROOT/openspec/scripts/openspec-spec-to-grist.py"
+  chmod +x "$PROJECT_ROOT/openspec/scripts/openspec-spec-to-grist.py"
+  echo "wrote: openspec/scripts/openspec-spec-to-grist.py"
+fi
 
 # 3. Validate schema
-if command -v openspec >/dev/null 2>&1; then
+if ! $DRY_RUN && command -v openspec >/dev/null 2>&1; then
   echo
   echo "validating schema..."
   if openspec schema validate grist 2>&1; then
@@ -72,8 +124,12 @@ elif [[ -f "$CONFIG" ]]; then
   echo
   echo "Or use per-change: openspec new <name> --schema grist"
 else
-  cp "$SRC_ROOT/config.yaml.example" "$CONFIG"
-  echo "wrote: openspec/config.yaml (with schema: grist activated)"
+  if $DRY_RUN; then
+    echo "[dry-run] Would write: openspec/config.yaml (with schema: grist activated)"
+  else
+    cp "$SRC_ROOT/config.yaml.example" "$CONFIG"
+    echo "wrote: openspec/config.yaml (with schema: grist activated)"
+  fi
 fi
 
 echo
@@ -88,3 +144,4 @@ echo "  2. Try a change: /opsx:propose <description>"
 echo "     → emits change.grist.yaml + tasks.md"
 echo "  3. Apply: /opsx:apply <change-name>"
 echo "     → /grist ship mode active during implementation"
+echo "  4. Uninstall: $0 $PROJECT_ROOT --uninstall"

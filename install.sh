@@ -21,6 +21,8 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+GRIST_INSTALLER_VERSION="1.1.0"
+
 usage() {
   echo "usage: $0 <project-root> [options]"
   echo
@@ -32,6 +34,7 @@ usage() {
   echo "  --openspec      Also install OpenSpec schema overlay"
   echo "  --dry-run       Show what would be done without modifying files"
   echo "  --uninstall     Remove GRIST overlays"
+  echo "  --force         Force reinstallation even if version matches"
   echo "  -h, --help      Show this help"
   exit 2
 }
@@ -41,15 +44,19 @@ usage() {
 PROJECT_ROOT=""
 FORCE_MODE=""
 INSTALL_OPENSPEC=false
+FORCE_INSTALL=false
 EXTRA_ARGS=()
+IS_UNINSTALL=false
+IS_DRY_RUN=false
 
 for arg in "$@"; do
   case "$arg" in
     --claude-code)  FORCE_MODE="claude-code" ;;
     --bmad-npm)     FORCE_MODE="bmad-npm" ;;
     --openspec)     INSTALL_OPENSPEC=true ;;
-    --dry-run)      EXTRA_ARGS+=("--dry-run") ;;
-    --uninstall)    EXTRA_ARGS+=("--uninstall") ;;
+    --dry-run)      EXTRA_ARGS+=("--dry-run"); IS_DRY_RUN=true ;;
+    --uninstall)    EXTRA_ARGS+=("--uninstall"); IS_UNINSTALL=true ;;
+    --force)        FORCE_INSTALL=true ;;
     --help|-h)      usage ;;
     *)
       if [[ -z "$PROJECT_ROOT" ]]; then
@@ -66,6 +73,32 @@ done
 
 if [[ -z "$PROJECT_ROOT" ]]; then
   usage
+fi
+
+# --- Version Checking -------------------------------------------------------
+
+GRIST_DIR="$PROJECT_ROOT/.grist"
+VERSION_FILE="$GRIST_DIR/version"
+
+if $IS_UNINSTALL; then
+  if $IS_DRY_RUN; then
+    echo "[dry-run] Would remove $VERSION_FILE"
+  else
+    rm -f "$VERSION_FILE"
+  fi
+elif ! $IS_DRY_RUN; then
+  if [[ -f "$VERSION_FILE" ]]; then
+    CURRENT_VERSION=$(cat "$VERSION_FILE")
+    if [[ "$CURRENT_VERSION" == "$GRIST_INSTALLER_VERSION" ]] && ! $FORCE_INSTALL; then
+      printf "${GREEN}✓${NC} GRIST is already up to date at version ${BLUE}%s${NC}.\n" "$CURRENT_VERSION"
+      echo "  Use --force to reinstall."
+      exit 0
+    elif [[ "$CURRENT_VERSION" != "$GRIST_INSTALLER_VERSION" ]]; then
+      printf "${BLUE}→${NC} Upgrading GRIST from version ${YELLOW}%s${NC} to ${GREEN}%s${NC}...\n" "$CURRENT_VERSION" "$GRIST_INSTALLER_VERSION"
+    fi
+  else
+    printf "${BLUE}→${NC} Installing GRIST version ${GREEN}%s${NC}...\n" "$GRIST_INSTALLER_VERSION"
+  fi
 fi
 
 # --- Detection --------------------------------------------------------------
@@ -154,11 +187,16 @@ if $INSTALL_OPENSPEC; then
         fi
         ;;
       *)
-        "$SCRIPT_DIR/openspec-overrides/install.sh" "$PROJECT_ROOT"
+        "$SCRIPT_DIR/openspec-overrides/install.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
         ;;
     esac
   else
     printf "${YELLOW}⚠${NC} No openspec/ directory found. Skipping OpenSpec overlay.\n"
     echo "  Run 'openspec init' first if you want OpenSpec support."
   fi
+fi
+
+if ! $IS_UNINSTALL && ! $IS_DRY_RUN; then
+  mkdir -p "$GRIST_DIR"
+  echo "$GRIST_INSTALLER_VERSION" > "$VERSION_FILE"
 fi
