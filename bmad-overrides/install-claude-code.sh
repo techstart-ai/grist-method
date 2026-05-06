@@ -305,6 +305,8 @@ if [[ -d "$SKILLS_DIR/bmad-create-prd" ]]; then
   final_step=$(find_final_step "$SKILLS_DIR/bmad-create-prd")
   if [[ -n "$final_step" ]]; then
     inject_block "$final_step" "$INJECTIONS_DIR/prd-emission.md" "EXECUTION PROTOCOLS"
+  elif [[ -f "$SKILLS_DIR/bmad-create-prd/workflow.md" ]]; then
+    inject_block "$SKILLS_DIR/bmad-create-prd/workflow.md" "$INJECTIONS_DIR/prd-emission.md" "</workflow>"
   else
     log_warn "bmad-create-prd: no final step file found — skipping injection"
   fi
@@ -315,6 +317,8 @@ if [[ -d "$SKILLS_DIR/bmad-create-architecture" ]]; then
   final_step=$(find_final_step "$SKILLS_DIR/bmad-create-architecture")
   if [[ -n "$final_step" ]]; then
     inject_block "$final_step" "$INJECTIONS_DIR/architecture-emission.md" "HALT|EXECUTION PROTOCOLS|next steps"
+  elif [[ -f "$SKILLS_DIR/bmad-create-architecture/workflow.md" ]]; then
+    inject_block "$SKILLS_DIR/bmad-create-architecture/workflow.md" "$INJECTIONS_DIR/architecture-emission.md" "</workflow>"
   else
     log_warn "bmad-create-architecture: no final step file found — skipping injection"
   fi
@@ -325,6 +329,8 @@ if [[ -d "$SKILLS_DIR/bmad-create-story" ]]; then
   final_step=$(find_final_step "$SKILLS_DIR/bmad-create-story")
   if [[ -n "$final_step" ]]; then
     inject_block "$final_step" "$INJECTIONS_DIR/story-emission.md" "HALT|EXECUTION PROTOCOLS|next steps"
+  elif [[ -f "$SKILLS_DIR/bmad-create-story/workflow.md" ]]; then
+    inject_block "$SKILLS_DIR/bmad-create-story/workflow.md" "$INJECTIONS_DIR/story-emission.md" "</workflow>"
   else
     log_warn "bmad-create-story: no final step file found — skipping injection"
   fi
@@ -367,6 +373,8 @@ if [[ -d "$SKILLS_DIR/bmad-code-review" ]]; then
 
   if [[ -n "$present_step" ]]; then
     inject_block "$present_step" "$INJECTIONS_DIR/code-review-emission.md" "Completion summary|completion summary|#### Completion"
+  elif [[ -f "$SKILLS_DIR/bmad-code-review/workflow.md" ]]; then
+    inject_block "$SKILLS_DIR/bmad-code-review/workflow.md" "$INJECTIONS_DIR/code-review-emission.md" "</workflow>"
   else
     log_warn "bmad-code-review: no suitable step file found — skipping injection"
   fi
