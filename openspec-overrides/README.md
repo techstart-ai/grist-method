@@ -6,6 +6,13 @@ A custom OpenSpec schema (`grist`) that replaces the default `spec-driven` schem
 
 ## What this does
 
+| Environment | Mechanism |
+|---|---|
+| Claude Code | Commands injected into `.claude/commands/` |
+| Cursor | Commands injected into `.cursor/skills/` |
+| Google Antigravity | Commands injected into `.agents/skills/` |
+| BMAD npm | No injection needed (TOML-only) |
+
 | Default `spec-driven` workflow | With `grist` schema |
 |---|---|
 | `/opsx:propose` writes 4 files: `proposal.md`, `design.md`, `tasks.md`, `specs/<cap>/spec.md` | `/opsx:propose` writes 2 files: `change.grist.yaml` (everything) + `tasks.md` (checkbox mirror) |

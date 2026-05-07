@@ -1,13 +1,13 @@
 # grist
 
-> Token-efficient mode for AI coding agents. Replaces prose planning artifacts with structured YAML. Drop-in for BMAD-method, OpenSpec, Cursor, Claude Code, and Windsurf.
+> Token-efficient mode for AI coding agents. Replaces prose planning artifacts with structured YAML. Drop-in for BMAD-method, OpenSpec, Cursor, Claude Code, Google Antigravity, and Windsurf.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
 GRIST cuts the tokens your AI coding agents spend on planning artifacts (PRDs, architecture docs, change proposals, stories) by 5–15× — without losing any technical signal. It does this by replacing prose Markdown templates with structured YAML schemas that agents can read, write, and reference by ID.
 
-It is not a model fine-tune, a proxy, or a fork of any tool. It is a small set of overlays — a custom OpenSpec schema, BMAD `_bmad/custom/` overrides, agent rules for Cursor / Claude Code / Windsurf, and a stats CLI — that you drop into your project alongside whatever you already use.
+It is not a model fine-tune, a proxy, or a fork of any tool. It is a small set of overlays — a custom OpenSpec schema, BMAD `_bmad/custom/` overrides, agent rules for Cursor / Claude Code / Google Antigravity / Windsurf, and a stats CLI — that you drop into your project alongside whatever you already use.
 
 ---
 
@@ -34,7 +34,7 @@ cd grist
 
 ### Auto-detect Installation
 
-The unified installer auto-detects your project type (BMAD npm, Claude Code skills, Cursor skills, OpenSpec) and installs the correct overrides:
+The unified installer auto-detects your project type (BMAD npm, Claude Code skills, Cursor skills, Google Antigravity skills, OpenSpec) and installs the correct overrides:
 
 ```bash
 ./install.sh /path/to/your/project
@@ -42,8 +42,9 @@ The unified installer auto-detects your project type (BMAD npm, Claude Code skil
 
 Or force a specific installation:
 ```bash
-./install.sh --claude-code /path/to/your/project
+././install.sh --claude-code /path/to/your/project
 ./install.sh --cursor /path/to/your/project
+./install.sh --antigravity /path/to/your/project
 ./install.sh --bmad-npm /path/to/your/project
 ./install.sh --openspec /path/to/your/project
 ```
@@ -51,7 +52,7 @@ Or force a specific installation:
 * **BMAD-method:** Five workflows emit `.grist.yaml` artifacts alongside the prose. See [bmad-overrides/README.md](bmad-overrides/README.md) for details.
 * **OpenSpec:** A custom `grist` schema replaces the default 4-file layout with a single `change.grist.yaml`. See [openspec-overrides/README.md](openspec-overrides/README.md).
 
-### For Cursor / Claude Code / Windsurf
+### For Cursor / Claude Code / Google Antigravity / Windsurf
 
 Copy `rules/grist-activate.md` into your agent's rule directory:
 
@@ -59,6 +60,7 @@ Copy `rules/grist-activate.md` into your agent's rule directory:
 |---|---|---|
 | Claude Code | `.claude/skills/grist/SKILL.md` | (use `./install.sh --claude-code`) |
 | Cursor | `.cursor/skills/grist/SKILL.md` + `.cursor/rules/grist.mdc` | (use `./install.sh --cursor`) |
+| Google Antigravity | `.agents/skills/grist/SKILL.md` | (use `./install.sh --antigravity`) |
 | Windsurf | `.windsurf/rules/grist.md` | `trigger: always_on` |
 | Cline | `.clinerules/grist.md` | (none — auto-discovered) |
 | Copilot | `.github/copilot-instructions.md` | (append) |
@@ -117,6 +119,7 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 | OpenSpec (custom `grist` schema replacing `spec-driven`) | Shipped | `openspec-overrides/` |
 | Claude Code (skill + persistent fact loading + step injection) | Shipped | `bmad-overrides/install-claude-code.sh` |
 | Cursor (skill + .mdc rule + step injection) | Shipped | `bmad-overrides/install-cursor.sh` |
+| Google Antigravity (skill + step injection + AGENTS.md) | Shipped | `bmad-overrides/install-antigravity.sh` |
 | Windsurf (always-on rule via `.windsurf/rules/`) | Shipped | `rules/grist-activate.md` |
 | Cline (`.clinerules/`) | Shipped | `rules/grist-activate.md` |
 | GitHub Copilot (`copilot-instructions.md`) | Shipped | `rules/grist-activate.md` |
@@ -273,7 +276,7 @@ See [gristats/README.md](gristats/README.md) for caveats and full subcommand ref
 - **BMAD-method**: ≥ 6.0 (uses the `[workflow]` customization namespace and `_bmad/custom/` resolver).
 - **OpenSpec**: any version that supports custom schemas via `openspec/schemas/<name>/`. See [OpenSpec customization docs](https://github.com/Fission-AI/OpenSpec/blob/main/docs/customization.md).
 - **Python**: ≥ 3.7 for the converter and `gristats` (uses `from __future__ import annotations`).
-- **Claude Code**, **Cursor**, **Windsurf**, **Cline**, **Copilot**: rule-file injection works on all current versions.
+- **Claude Code**, **Cursor**, **Google Antigravity**, **Windsurf**, **Cline**, **Copilot**: rule-file injection works on all current versions.
 
 GRIST adds no required runtime dependencies. Optional: `pip install tiktoken` for more accurate token counts in `gristats`.
 

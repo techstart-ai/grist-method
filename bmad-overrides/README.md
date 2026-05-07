@@ -62,7 +62,9 @@ bmad-overrides/
 BMAD projects can use one of two runtimes. The installer auto-detects which you use and applies the right overrides:
 
 1. **Claude Code skills** (detected via `.claude/skills/bmad-*/`): The installer patches your step files directly with `<!-- GRIST:BEGIN/END -->` markers, installs the `grist` skill and slash command, and updates `CLAUDE.md`.
-2. **BMAD npm/framework** (detected via `_bmad/bmm/config.yaml`): The installer copies TOML overrides into `_bmad/custom/`. It preserves your existing edits and skips `.user.toml` files.
+2. **Cursor skills** (detected via `.cursor/skills/bmad-*/`): The installer patches your step files directly with `<!-- GRIST:BEGIN/END -->` markers, installs the `grist` skill and `.mdc` rule.
+3. **Google Antigravity skills** (detected via `.agents/skills/bmad-*/`): The installer patches your step files directly with `<!-- GRIST:BEGIN/END -->` markers, installs the `grist` skill, and updates `AGENTS.md`.
+4. **BMAD npm/framework** (detected via `_bmad/bmm/config.yaml`): The installer copies TOML overrides into `_bmad/custom/`. It preserves your existing edits and skips `.user.toml` files.
 
 In both cases, it copies emission rules, schemas, and scripts (always overwriting these GRIST-controlled files).
 

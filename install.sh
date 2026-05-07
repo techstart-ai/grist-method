@@ -9,9 +9,10 @@
 # Detection logic:
 #   1. .claude/skills/bmad-create-prd/  → Claude Code skills variant
 #   2. .cursor/skills/bmad-create-prd/  → Cursor skills variant
-#   3. _bmad/bmm/config.yaml           → BMAD npm/framework variant
-#   4. Multiple present                 → Claude Code > Cursor > BMAD npm (warn)
-#   5. Neither                          → error with guidance
+#   3. .agents/skills/bmad-create-prd/  → Antigravity skills variant
+#   4. _bmad/bmm/config.yaml           → BMAD npm/framework variant
+#   5. Multiple present                 → Claude Code > Cursor > Antigravity > BMAD npm (warn)
+#   6. Neither                          → error with guidance
 
 set -euo pipefail
 
@@ -31,6 +32,7 @@ usage() {
   echo "Options:"
   echo "  --claude-code   Force Claude Code skills installer"
   echo "  --cursor        Force Cursor skills installer"
+  echo "  --antigravity   Force Antigravity skills installer"
   echo "  --bmad-npm      Force BMAD npm/framework installer"
   echo "  --openspec      Also install OpenSpec schema overlay"
   echo "  --dry-run       Show what would be done without modifying files"
@@ -54,6 +56,7 @@ for arg in "$@"; do
   case "$arg" in
     --claude-code)  FORCE_MODE="claude-code" ;;
     --cursor)       FORCE_MODE="cursor" ;;
+    --antigravity)  FORCE_MODE="antigravity" ;;
     --bmad-npm)     FORCE_MODE="bmad-npm" ;;
     --openspec)     INSTALL_OPENSPEC=true ;;
     --dry-run)      EXTRA_ARGS+=("--dry-run"); IS_DRY_RUN=true ;;
@@ -107,6 +110,7 @@ fi
 
 HAS_CLAUDE_CODE=false
 HAS_CURSOR=false
+HAS_ANTIGRAVITY=false
 HAS_BMAD_NPM=false
 HAS_OPENSPEC=false
 
@@ -114,8 +118,10 @@ HAS_OPENSPEC=false
 [[ -d "$PROJECT_ROOT/.claude/skills/bmad-create-architecture" ]] && HAS_CLAUDE_CODE=true
 [[ -d "$PROJECT_ROOT/.cursor/skills/bmad-create-prd" ]] && HAS_CURSOR=true
 [[ -d "$PROJECT_ROOT/.cursor/skills/bmad-create-architecture" ]] && HAS_CURSOR=true
+[[ -d "$PROJECT_ROOT/.agents/skills/bmad-create-prd" ]] && HAS_ANTIGRAVITY=true
+[[ -d "$PROJECT_ROOT/.agents/skills/bmad-create-architecture" ]] && HAS_ANTIGRAVITY=true
 [[ -f "$PROJECT_ROOT/_bmad/bmm/config.yaml" ]] && HAS_BMAD_NPM=true
-[[ -d "$PROJECT_ROOT/_bmad" && ! -d "$PROJECT_ROOT/.claude/skills" && ! -d "$PROJECT_ROOT/.cursor/skills" ]] && HAS_BMAD_NPM=true
+[[ -d "$PROJECT_ROOT/_bmad" && ! -d "$PROJECT_ROOT/.claude/skills" && ! -d "$PROJECT_ROOT/.cursor/skills" && ! -d "$PROJECT_ROOT/.agents/skills" ]] && HAS_BMAD_NPM=true
 [[ -d "$PROJECT_ROOT/openspec" ]] && HAS_OPENSPEC=true
 
 # Determine mode
@@ -137,10 +143,17 @@ if [[ -z "$MODE" ]]; then
     printf "  Using Cursor installer (most common for active projects).\n"
     printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
     MODE="cursor"
+  elif $HAS_ANTIGRAVITY && $HAS_BMAD_NPM; then
+    printf "${YELLOW}⚠${NC} Both Antigravity skills and BMAD npm/framework detected.\n"
+    printf "  Using Antigravity installer (most common for active projects).\n"
+    printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
+    MODE="antigravity"
   elif $HAS_CLAUDE_CODE; then
     MODE="claude-code"
   elif $HAS_CURSOR; then
     MODE="cursor"
+  elif $HAS_ANTIGRAVITY; then
+    MODE="antigravity"
   elif $HAS_BMAD_NPM; then
     MODE="bmad-npm"
   else
@@ -149,11 +162,12 @@ if [[ -z "$MODE" ]]; then
     echo "Expected one of:" >&2
     echo "  • .claude/skills/bmad-create-prd/  (Claude Code skills)" >&2
     echo "  • .cursor/skills/bmad-create-prd/  (Cursor skills)" >&2
+    echo "  • .agents/skills/bmad-create-prd/  (Antigravity skills)" >&2
     echo "  • _bmad/bmm/config.yaml            (BMAD npm/framework)" >&2
     echo "" >&2
     echo "Options:" >&2
     echo "  1. Install BMAD skills first, then re-run" >&2
-    echo "  2. Use --claude-code, --cursor, or --bmad-npm to force a mode" >&2
+    echo "  2. Use --claude-code, --cursor, --antigravity, or --bmad-npm to force a mode" >&2
     exit 1
   fi
 fi
@@ -177,6 +191,13 @@ case "$MODE" in
       "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
     else
       "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT"
+    fi
+    ;;
+  antigravity)
+    if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+      "$SCRIPT_DIR/bmad-overrides/install-antigravity.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+    else
+      "$SCRIPT_DIR/bmad-overrides/install-antigravity.sh" "$PROJECT_ROOT"
     fi
     ;;
   bmad-npm)
@@ -216,6 +237,13 @@ if $INSTALL_OPENSPEC; then
           "$SCRIPT_DIR/openspec-overrides/install-cursor.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
         else
           "$SCRIPT_DIR/openspec-overrides/install-cursor.sh" "$PROJECT_ROOT"
+        fi
+        ;;
+      antigravity)
+        if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+          "$SCRIPT_DIR/openspec-overrides/install-antigravity.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+        else
+          "$SCRIPT_DIR/openspec-overrides/install-antigravity.sh" "$PROJECT_ROOT"
         fi
         ;;
       *)
