@@ -4,14 +4,12 @@
 # Usage: ./install.sh <project-root> [--dry-run] [--uninstall]
 #        ./install.sh <project-root> --bmad-npm     # force BMAD npm/framework path
 #        ./install.sh <project-root> --claude-code   # force Claude Code skills path
-#        ./install.sh <project-root> --cursor        # force Cursor skills path
 #
 # Detection logic:
 #   1. .claude/skills/bmad-create-prd/  → Claude Code skills variant
-#   2. .cursor/skills/bmad-create-prd/  → Cursor skills variant
-#   3. _bmad/bmm/config.yaml           → BMAD npm/framework variant
-#   4. Multiple present                 → Claude Code > Cursor > BMAD npm (warn)
-#   5. Neither                          → error with guidance
+#   2. _bmad/bmm/config.yaml           → BMAD npm/framework variant
+#   3. Both present                     → Claude Code takes precedence (warn)
+#   4. Neither                          → error with guidance
 
 set -euo pipefail
 
@@ -30,7 +28,6 @@ usage() {
   echo
   echo "Options:"
   echo "  --claude-code   Force Claude Code skills installer"
-  echo "  --cursor        Force Cursor skills installer"
   echo "  --bmad-npm      Force BMAD npm/framework installer"
   echo "  --openspec      Also install OpenSpec schema overlay"
   echo "  --dry-run       Show what would be done without modifying files"
@@ -53,7 +50,6 @@ IS_DRY_RUN=false
 for arg in "$@"; do
   case "$arg" in
     --claude-code)  FORCE_MODE="claude-code" ;;
-    --cursor)       FORCE_MODE="cursor" ;;
     --bmad-npm)     FORCE_MODE="bmad-npm" ;;
     --openspec)     INSTALL_OPENSPEC=true ;;
     --dry-run)      EXTRA_ARGS+=("--dry-run"); IS_DRY_RUN=true ;;
@@ -106,41 +102,26 @@ fi
 # --- Detection --------------------------------------------------------------
 
 HAS_CLAUDE_CODE=false
-HAS_CURSOR=false
 HAS_BMAD_NPM=false
 HAS_OPENSPEC=false
 
 [[ -d "$PROJECT_ROOT/.claude/skills/bmad-create-prd" ]] && HAS_CLAUDE_CODE=true
 [[ -d "$PROJECT_ROOT/.claude/skills/bmad-create-architecture" ]] && HAS_CLAUDE_CODE=true
-[[ -d "$PROJECT_ROOT/.cursor/skills/bmad-create-prd" ]] && HAS_CURSOR=true
-[[ -d "$PROJECT_ROOT/.cursor/skills/bmad-create-architecture" ]] && HAS_CURSOR=true
 [[ -f "$PROJECT_ROOT/_bmad/bmm/config.yaml" ]] && HAS_BMAD_NPM=true
-[[ -d "$PROJECT_ROOT/_bmad" && ! -d "$PROJECT_ROOT/.claude/skills" && ! -d "$PROJECT_ROOT/.cursor/skills" ]] && HAS_BMAD_NPM=true
+[[ -d "$PROJECT_ROOT/_bmad" && ! -d "$PROJECT_ROOT/.claude/skills" ]] && HAS_BMAD_NPM=true
 [[ -d "$PROJECT_ROOT/openspec" ]] && HAS_OPENSPEC=true
 
 # Determine mode
 MODE="${FORCE_MODE:-}"
 
 if [[ -z "$MODE" ]]; then
-  if $HAS_CLAUDE_CODE && $HAS_CURSOR; then
-    printf "${YELLOW}⚠${NC} Both Claude Code and Cursor skills detected.\n"
-    printf "  Using Claude Code installer (takes precedence).\n"
-    printf "  Use --cursor to force the Cursor installer.\n\n"
-    MODE="claude-code"
-  elif $HAS_CLAUDE_CODE && $HAS_BMAD_NPM; then
+  if $HAS_CLAUDE_CODE && $HAS_BMAD_NPM; then
     printf "${YELLOW}⚠${NC} Both Claude Code skills and BMAD npm/framework detected.\n"
     printf "  Using Claude Code installer (most common for active projects).\n"
     printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
     MODE="claude-code"
-  elif $HAS_CURSOR && $HAS_BMAD_NPM; then
-    printf "${YELLOW}⚠${NC} Both Cursor skills and BMAD npm/framework detected.\n"
-    printf "  Using Cursor installer (most common for active projects).\n"
-    printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
-    MODE="cursor"
   elif $HAS_CLAUDE_CODE; then
     MODE="claude-code"
-  elif $HAS_CURSOR; then
-    MODE="cursor"
   elif $HAS_BMAD_NPM; then
     MODE="bmad-npm"
   else
@@ -148,12 +129,11 @@ if [[ -z "$MODE" ]]; then
     echo "" >&2
     echo "Expected one of:" >&2
     echo "  • .claude/skills/bmad-create-prd/  (Claude Code skills)" >&2
-    echo "  • .cursor/skills/bmad-create-prd/  (Cursor skills)" >&2
     echo "  • _bmad/bmm/config.yaml            (BMAD npm/framework)" >&2
     echo "" >&2
     echo "Options:" >&2
     echo "  1. Install BMAD skills first, then re-run" >&2
-    echo "  2. Use --claude-code, --cursor, or --bmad-npm to force a mode" >&2
+    echo "  2. Use --claude-code or --bmad-npm to force a mode" >&2
     exit 1
   fi
 fi
@@ -170,13 +150,6 @@ case "$MODE" in
       "$SCRIPT_DIR/bmad-overrides/install-claude-code.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
     else
       "$SCRIPT_DIR/bmad-overrides/install-claude-code.sh" "$PROJECT_ROOT"
-    fi
-    ;;
-  cursor)
-    if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-      "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
-    else
-      "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT"
     fi
     ;;
   bmad-npm)
@@ -209,13 +182,6 @@ if $INSTALL_OPENSPEC; then
           "$SCRIPT_DIR/openspec-overrides/install-claude-code.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
         else
           "$SCRIPT_DIR/openspec-overrides/install-claude-code.sh" "$PROJECT_ROOT"
-        fi
-        ;;
-      cursor)
-        if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-          "$SCRIPT_DIR/openspec-overrides/install-cursor.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
-        else
-          "$SCRIPT_DIR/openspec-overrides/install-cursor.sh" "$PROJECT_ROOT"
         fi
         ;;
       *)
