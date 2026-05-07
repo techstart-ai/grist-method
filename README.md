@@ -34,7 +34,7 @@ cd grist
 
 ### Auto-detect Installation
 
-The unified installer auto-detects your project type (BMAD npm, Claude Code skills, OpenSpec) and installs the correct overrides:
+The unified installer auto-detects your project type (BMAD npm, Claude Code skills, Cursor skills, OpenSpec) and installs the correct overrides:
 
 ```bash
 ./install.sh /path/to/your/project
@@ -43,6 +43,7 @@ The unified installer auto-detects your project type (BMAD npm, Claude Code skil
 Or force a specific installation:
 ```bash
 ./install.sh --claude-code /path/to/your/project
+./install.sh --cursor /path/to/your/project
 ./install.sh --bmad-npm /path/to/your/project
 ./install.sh --openspec /path/to/your/project
 ```
@@ -56,11 +57,11 @@ Copy `rules/grist-activate.md` into your agent's rule directory:
 
 | Agent | Path | Frontmatter to add |
 |---|---|---|
-| Cursor | `.cursor/rules/grist.mdc` | `alwaysApply: true` |
+| Claude Code | `.claude/skills/grist/SKILL.md` | (use `./install.sh --claude-code`) |
+| Cursor | `.cursor/skills/grist/SKILL.md` + `.cursor/rules/grist.mdc` | (use `./install.sh --cursor`) |
 | Windsurf | `.windsurf/rules/grist.md` | `trigger: always_on` |
 | Cline | `.clinerules/grist.md` | (none — auto-discovered) |
 | Copilot | `.github/copilot-instructions.md` | (append) |
-| Claude Code | `~/.claude/skills/grist/SKILL.md` | (paste `skills/grist/SKILL.md`) |
 
 Activate per session with `/grist chat`, `/grist design`, `/grist iterate`, or `/grist ship`.
 
@@ -87,6 +88,7 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 .
 ├── skills/grist/SKILL.md       # Four-mode behavior spec (chat / design / iterate / ship)
 ├── rules/grist-activate.md     # Always-on rules for Cursor / Windsurf / Claude / Cline / Copilot
+├── cursor-rules/grist.mdc      # Cursor-specific always-on .mdc rule
 ├── schemas/                    # YAML schemas for all artifact types
 │   ├── prd.grist.yaml          # BMAD product requirements doc
 │   ├── architecture.grist.yaml # BMAD architecture doc
@@ -113,9 +115,9 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 |---|---|---|
 | BMAD-method (`bmad-create-prd`, `bmad-create-architecture`, `bmad-create-story`, `bmad-dev-story`, `bmad-code-review`) | Shipped | `bmad-overrides/` |
 | OpenSpec (custom `grist` schema replacing `spec-driven`) | Shipped | `openspec-overrides/` |
-| Cursor (always-on rule via `.cursor/rules/`) | Shipped | `rules/grist-activate.md` |
+| Claude Code (skill + persistent fact loading + step injection) | Shipped | `bmad-overrides/install-claude-code.sh` |
+| Cursor (skill + .mdc rule + step injection) | Shipped | `bmad-overrides/install-cursor.sh` |
 | Windsurf (always-on rule via `.windsurf/rules/`) | Shipped | `rules/grist-activate.md` |
-| Claude Code (skill + persistent fact loading) | Shipped | `skills/grist/` |
 | Cline (`.clinerules/`) | Shipped | `rules/grist-activate.md` |
 | GitHub Copilot (`copilot-instructions.md`) | Shipped | `rules/grist-activate.md` |
 | `gristats` (Claude Code transcript parser by phase) | Shipped | `gristats/` |
