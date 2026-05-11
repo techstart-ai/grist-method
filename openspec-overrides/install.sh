@@ -103,26 +103,30 @@ fi
 if ! $DRY_RUN && command -v openspec >/dev/null 2>&1; then
   echo
   echo "validating schema..."
-  if openspec schema validate grist 2>&1; then
+  if (cd "$PROJECT_ROOT" && openspec schema validate grist) 2>&1; then
     echo "schema valid."
   else
     echo "  schema validation failed — review schema.yaml" >&2
   fi
 fi
 
-# 4. Activate — only if config.yaml doesn't already select grist
+# 4. Activate — set schema: grist in config.yaml (create or upsert)
 CONFIG="$PROJECT_ROOT/openspec/config.yaml"
 if [[ -f "$CONFIG" ]] && grep -q "^schema:[[:space:]]*grist[[:space:]]*$" "$CONFIG"; then
   echo
   echo "openspec/config.yaml already activates 'grist' — done."
 elif [[ -f "$CONFIG" ]]; then
-  echo
-  echo "openspec/config.yaml exists but does not activate grist."
-  echo "Add this line to enable project-wide:"
-  echo
-  echo "    schema: grist"
-  echo
-  echo "Or use per-change: openspec new <name> --schema grist"
+  # Config exists but schema is missing or set to something else — upsert the line
+  if $DRY_RUN; then
+    echo "[dry-run] Would upsert 'schema: grist' in openspec/config.yaml"
+  else
+    if grep -q "^schema:" "$CONFIG"; then
+      sed -i.bak "s/^schema:.*/schema: grist/" "$CONFIG" && rm -f "$CONFIG.bak"
+    else
+      echo "schema: grist" >> "$CONFIG"
+    fi
+    echo "updated: openspec/config.yaml (schema: grist activated)"
+  fi
 else
   if $DRY_RUN; then
     echo "[dry-run] Would write: openspec/config.yaml (with schema: grist activated)"

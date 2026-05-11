@@ -2,9 +2,11 @@
 # Install GRIST into a project — auto-detects BMAD variant.
 #
 # Usage: ./install.sh <project-root> [--dry-run] [--uninstall]
-#        ./install.sh <project-root> --bmad-npm     # force BMAD npm/framework path
-#        ./install.sh <project-root> --claude-code   # force Claude Code skills path
-#        ./install.sh <project-root> --cursor        # force Cursor skills path
+#        ./install.sh <project-root> --bmad-npm       # force BMAD npm/framework path
+#        ./install.sh <project-root> --claude-code    # force Claude Code skills path
+#        ./install.sh <project-root> --cursor         # force Cursor skills path
+#        ./install.sh <project-root> --openspec       # OpenSpec overlay only (no BMAD required)
+#        ./install.sh <project-root> --openspec --claude-code  # OpenSpec with explicit mode
 #
 # Detection logic:
 #   1. .claude/skills/bmad-create-prd/  → Claude Code skills variant
@@ -12,7 +14,8 @@
 #   3. .agents/skills/bmad-create-prd/  → Antigravity skills variant
 #   4. _bmad/bmm/config.yaml           → BMAD npm/framework variant
 #   5. Multiple present                 → Claude Code > Cursor > Antigravity > BMAD npm (warn)
-#   6. Neither                          → error with guidance
+#   6. --openspec with no BMAD         → OpenSpec-only install (no BMAD installer run)
+#   7. Neither and no --openspec        → error with guidance
 
 set -euo pipefail
 
@@ -156,6 +159,9 @@ if [[ -z "$MODE" ]]; then
     MODE="antigravity"
   elif $HAS_BMAD_NPM; then
     MODE="bmad-npm"
+  elif $INSTALL_OPENSPEC; then
+    printf "${YELLOW}⚠${NC} No BMAD variant detected. Installing OpenSpec overlay only.\n\n"
+    MODE="openspec-only"
   else
     printf "${RED}✗${NC} Cannot detect BMAD variant at: %s\n" "$PROJECT_ROOT" >&2
     echo "" >&2
@@ -168,62 +174,69 @@ if [[ -z "$MODE" ]]; then
     echo "Options:" >&2
     echo "  1. Install BMAD skills first, then re-run" >&2
     echo "  2. Use --claude-code, --cursor, --antigravity, or --bmad-npm to force a mode" >&2
+    echo "  3. Use --openspec to install the OpenSpec overlay without BMAD" >&2
     exit 1
   fi
 fi
 
 # --- Run BMAD installer -----------------------------------------------------
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-printf "${BLUE}GRIST installer${NC} — mode: ${GREEN}%s${NC}\n" "$MODE"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [[ "$MODE" != "openspec-only" ]]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  printf "${BLUE}GRIST installer${NC} — mode: ${GREEN}%s${NC}\n" "$MODE"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-case "$MODE" in
-  claude-code)
-    if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-      "$SCRIPT_DIR/bmad-overrides/install-claude-code.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
-    else
-      "$SCRIPT_DIR/bmad-overrides/install-claude-code.sh" "$PROJECT_ROOT"
-    fi
-    ;;
-  cursor)
-    if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-      "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
-    else
-      "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT"
-    fi
-    ;;
-  antigravity)
-    if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-      "$SCRIPT_DIR/bmad-overrides/install-antigravity.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
-    else
-      "$SCRIPT_DIR/bmad-overrides/install-antigravity.sh" "$PROJECT_ROOT"
-    fi
-    ;;
-  bmad-npm)
-    if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-      "$SCRIPT_DIR/bmad-overrides/install.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
-    else
-      "$SCRIPT_DIR/bmad-overrides/install.sh" "$PROJECT_ROOT"
-    fi
-    ;;
-  *)
-    echo "error: unknown mode: $MODE" >&2
-    exit 1
-    ;;
-esac
+  case "$MODE" in
+    claude-code)
+      if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+        "$SCRIPT_DIR/bmad-overrides/install-claude-code.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+      else
+        "$SCRIPT_DIR/bmad-overrides/install-claude-code.sh" "$PROJECT_ROOT"
+      fi
+      ;;
+    cursor)
+      if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+        "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+      else
+        "$SCRIPT_DIR/bmad-overrides/install-cursor.sh" "$PROJECT_ROOT"
+      fi
+      ;;
+    antigravity)
+      if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+        "$SCRIPT_DIR/bmad-overrides/install-antigravity.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+      else
+        "$SCRIPT_DIR/bmad-overrides/install-antigravity.sh" "$PROJECT_ROOT"
+      fi
+      ;;
+    bmad-npm)
+      if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+        "$SCRIPT_DIR/bmad-overrides/install.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+      else
+        "$SCRIPT_DIR/bmad-overrides/install.sh" "$PROJECT_ROOT"
+      fi
+      ;;
+    *)
+      echo "error: unknown mode: $MODE" >&2
+      exit 1
+      ;;
+  esac
+fi
 
 # --- OpenSpec (if requested) ------------------------------------------------
 
 if $INSTALL_OPENSPEC; then
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  printf "${BLUE}GRIST OpenSpec overlay${NC}\n"
+  if [[ "$MODE" == "openspec-only" ]]; then
+    printf "${BLUE}GRIST OpenSpec overlay${NC} — mode: ${GREEN}openspec-only${NC}\n"
+  else
+    printf "${BLUE}GRIST OpenSpec overlay${NC}\n"
+  fi
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   if $HAS_OPENSPEC; then
     # Claude Code mode gets the command-file injection installer;
-    # BMAD npm mode (or schema-only) gets the standard schema installer
+    # BMAD npm / openspec-only mode gets the standard schema installer
     case "$MODE" in
       claude-code)
         if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
@@ -246,8 +259,12 @@ if $INSTALL_OPENSPEC; then
           "$SCRIPT_DIR/openspec-overrides/install-antigravity.sh" "$PROJECT_ROOT"
         fi
         ;;
-      *)
-        "$SCRIPT_DIR/openspec-overrides/install.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+      openspec-only|*)
+        if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+          "$SCRIPT_DIR/openspec-overrides/install.sh" "$PROJECT_ROOT" "${EXTRA_ARGS[@]}"
+        else
+          "$SCRIPT_DIR/openspec-overrides/install.sh" "$PROJECT_ROOT"
+        fi
         ;;
     esac
   else
