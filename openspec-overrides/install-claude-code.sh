@@ -12,7 +12,7 @@
 # What it does:
 #   1. Runs the standard OpenSpec installer (copies schema + script + config)
 #   2. Injects GRIST blocks into /opsx:propose, /opsx:apply, /opsx:archive commands
-#   3. Copies the grist.md slash command if not already present
+#   3. Copies the grist skill (SKILL.md) and slash commands (grist.md / grist.toml)
 #   4. Appends GRIST always-on rules to CLAUDE.md (idempotent)
 #   5. Creates .grist/context-pack.md from template if not present
 
@@ -313,11 +313,24 @@ else
   log_warn "opsx:archive command not found — skipping injection"
 fi
 
-# --- Step 3: Install/update grist slash command -----------------------------
+# --- Step 3: Install/update grist skill and slash command -------------------
 
 echo
-log_info "Step 3: Installing grist slash command"
+log_info "Step 3: Installing grist skill and slash command"
 
+# Skill
+SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
+SKILL_DST="$SKILLS_DIR/grist"
+mkdir -p "$SKILL_DST"
+
+if $DRY_RUN; then
+  log_info "[dry-run] Would install .claude/skills/grist/SKILL.md"
+else
+  cp "$GRIST_ROOT/skills/grist/SKILL.md" "$SKILL_DST/SKILL.md"
+  log_ok ".claude/skills/grist/SKILL.md"
+fi
+
+# Command (both .md and .toml for compatibility)
 mkdir -p "$COMMANDS_DIR"
 
 if $DRY_RUN; then
