@@ -274,18 +274,23 @@ find_final_step() {
   local steps_dir="$1"
   local result=""
 
-  # Try multiple common step directory names
-  for subdir in steps-c steps steps-d; do
-    local dir="$steps_dir/$subdir"
+  # Try multiple common step directory names (including flat root — no subdir)
+  for subdir in steps-c steps steps-d steps-a steps-s steps-r .; do
+    local dir
+    if [[ "$subdir" == "." ]]; then
+      dir="$steps_dir"
+    else
+      dir="$steps_dir/$subdir"
+    fi
     if [[ -d "$dir" ]]; then
       # Find step files with "complete" or "final" in name first
-      result=$(find "$dir" -name '*complete*' -o -name '*final*' | head -1)
+      result=$(find "$dir" -maxdepth 1 \( -name '*complete*' -o -name '*final*' \) -name '*.md' -type f | sort -V | tail -1)
       if [[ -n "$result" ]]; then
         echo "$result"
         return 0
       fi
       # Fall back to highest-numbered step file
-      result=$(find "$dir" -name 'step-*' -type f | sort -V | tail -1)
+      result=$(find "$dir" -maxdepth 1 -name 'step-*' -type f | sort -V | tail -1)
       if [[ -n "$result" ]]; then
         echo "$result"
         return 0
@@ -293,12 +298,29 @@ find_final_step() {
     fi
   done
 
-  # Last resort: any .md file with "complete" or "final"
-  result=$(find "$steps_dir" -name '*.md' -path '*step*' | sort -V | tail -1)
+  # Last resort: deepest .md file with "step" anywhere in its path
+  result=$(find "$steps_dir" -name '*.md' | grep -i 'step' | sort -V | tail -1)
   echo "$result"
 }
 
 INJECTIONS_DIR="$SCRIPT_DIR/injections"
+
+# Helper: emit a diagnostic showing what .md files exist under a skill dir
+debug_skill_contents() {
+  local skill_dir="$1"
+  local skill_name="$2"
+  local found
+  found=$(find "$skill_dir" -name '*.md' -type f 2>/dev/null | sort | head -10)
+  if [[ -n "$found" ]]; then
+    log_warn "  Files found in $skill_name/:"
+    while IFS= read -r f; do
+      log_warn "    ${f#"$skill_dir/"}"
+    done <<< "$found"
+    log_warn "  Add the dir name to find_final_step() or open an issue."
+  else
+    log_warn "  No .md files found in $skill_name/ at all — skill may be empty."
+  fi
+}
 
 # --- bmad-create-prd ---
 if [[ -d "$SKILLS_DIR/bmad-create-prd" ]]; then
@@ -309,6 +331,7 @@ if [[ -d "$SKILLS_DIR/bmad-create-prd" ]]; then
     inject_block "$SKILLS_DIR/bmad-create-prd/workflow.md" "$INJECTIONS_DIR/prd-emission.md" "</workflow>"
   else
     log_warn "bmad-create-prd: no final step file found — skipping injection"
+    debug_skill_contents "$SKILLS_DIR/bmad-create-prd" "bmad-create-prd"
   fi
 fi
 
@@ -321,6 +344,7 @@ if [[ -d "$SKILLS_DIR/bmad-create-architecture" ]]; then
     inject_block "$SKILLS_DIR/bmad-create-architecture/workflow.md" "$INJECTIONS_DIR/architecture-emission.md" "</workflow>"
   else
     log_warn "bmad-create-architecture: no final step file found — skipping injection"
+    debug_skill_contents "$SKILLS_DIR/bmad-create-architecture" "bmad-create-architecture"
   fi
 fi
 
@@ -333,6 +357,7 @@ if [[ -d "$SKILLS_DIR/bmad-create-story" ]]; then
     inject_block "$SKILLS_DIR/bmad-create-story/workflow.md" "$INJECTIONS_DIR/story-emission.md" "</workflow>"
   else
     log_warn "bmad-create-story: no final step file found — skipping injection"
+    debug_skill_contents "$SKILLS_DIR/bmad-create-story" "bmad-create-story"
   fi
 fi
 
@@ -345,7 +370,14 @@ if [[ -d "$SKILLS_DIR/bmad-dev-story" ]]; then
     # Injection B: story completion (in step 9)
     inject_block "$workflow_file" "$INJECTIONS_DIR/dev-story-complete.md" 'step n="10"|HALT|</workflow>' "COMPLETE"
   else
-    log_warn "bmad-dev-story: workflow.md not found — skipping injection"
+    # Newer BMAD versions use step files instead of a single workflow.md
+    final_step=$(find_final_step "$SKILLS_DIR/bmad-dev-story")
+    if [[ -n "$final_step" ]]; then
+      inject_block "$final_step" "$INJECTIONS_DIR/dev-story-complete.md" "HALT|EXECUTION PROTOCOLS|next steps"
+    else
+      log_warn "bmad-dev-story: no workflow.md or step files found — skipping injection"
+      debug_skill_contents "$SKILLS_DIR/bmad-dev-story" "bmad-dev-story"
+    fi
   fi
 fi
 
