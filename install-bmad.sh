@@ -89,38 +89,20 @@ HAS_BMAD_NPM=false
 [[ -f "$PROJECT_ROOT/_bmad/bmm/config.yaml" ]] && HAS_BMAD_NPM=true
 [[ -d "$PROJECT_ROOT/_bmad" && ! -d "$PROJECT_ROOT/.claude/skills" && ! -d "$PROJECT_ROOT/.cursor/skills" && ! -d "$PROJECT_ROOT/.agents/skills" ]] && HAS_BMAD_NPM=true
 
-MODE="${FORCE_MODE:-}"
+MODES=()
 
-if [[ -z "$MODE" ]]; then
-  if $HAS_CLAUDE_CODE && $HAS_CURSOR; then
-    printf "${YELLOW}⚠${NC} Both Claude Code and Cursor skills detected.\n"
-    printf "  Using Claude Code installer (takes precedence).\n"
-    printf "  Use --cursor to force the Cursor installer.\n\n"
-    MODE="claude-code"
-  elif $HAS_CLAUDE_CODE && $HAS_BMAD_NPM; then
-    printf "${YELLOW}⚠${NC} Both Claude Code skills and BMAD npm/framework detected.\n"
-    printf "  Using Claude Code installer.\n"
-    printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
-    MODE="claude-code"
-  elif $HAS_CURSOR && $HAS_BMAD_NPM; then
-    printf "${YELLOW}⚠${NC} Both Cursor skills and BMAD npm/framework detected.\n"
-    printf "  Using Cursor installer.\n"
-    printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
-    MODE="cursor"
-  elif $HAS_ANTIGRAVITY && $HAS_BMAD_NPM; then
-    printf "${YELLOW}⚠${NC} Both Antigravity skills and BMAD npm/framework detected.\n"
-    printf "  Using Antigravity installer.\n"
-    printf "  Use --bmad-npm to force the TOML-based installer.\n\n"
-    MODE="antigravity"
-  elif $HAS_CLAUDE_CODE; then
-    MODE="claude-code"
-  elif $HAS_CURSOR; then
-    MODE="cursor"
-  elif $HAS_ANTIGRAVITY; then
-    MODE="antigravity"
-  elif $HAS_BMAD_NPM; then
-    MODE="bmad-npm"
-  else
+if [[ -n "$FORCE_MODE" ]]; then
+  MODES=("$FORCE_MODE")
+else
+  $HAS_CLAUDE_CODE && MODES+=("claude-code")
+  $HAS_CURSOR      && MODES+=("cursor")
+  $HAS_ANTIGRAVITY && MODES+=("antigravity")
+  # npm only when no skills-based tools detected
+  if [[ ${#MODES[@]} -eq 0 ]] && $HAS_BMAD_NPM; then
+    MODES+=("bmad-npm")
+  fi
+
+  if [[ ${#MODES[@]} -eq 0 ]]; then
     printf "${RED}✗${NC} Cannot detect BMAD variant at: %s\n" "$PROJECT_ROOT" >&2
     echo "" >&2
     echo "Expected one of:" >&2
@@ -136,25 +118,27 @@ fi
 
 # --- Run installer ----------------------------------------------------------
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-printf "${BLUE}GRIST BMAD installer${NC} — mode: ${GREEN}%s${NC}\n" "$MODE"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+for MODE in "${MODES[@]}"; do
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  printf "${BLUE}GRIST BMAD installer${NC} — mode: ${GREEN}%s${NC}\n" "$MODE"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-case "$MODE" in
-  claude-code)
-    "$BMAD_OVERRIDES/install-claude-code.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  cursor)
-    "$BMAD_OVERRIDES/install-cursor.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  antigravity)
-    "$BMAD_OVERRIDES/install-antigravity.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  bmad-npm)
-    "$BMAD_OVERRIDES/install.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  *)
-    echo "error: unknown mode: $MODE" >&2
-    exit 1
-    ;;
-esac
+  case "$MODE" in
+    claude-code)
+      "$BMAD_OVERRIDES/install-claude-code.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    cursor)
+      "$BMAD_OVERRIDES/install-cursor.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    antigravity)
+      "$BMAD_OVERRIDES/install-antigravity.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    bmad-npm)
+      "$BMAD_OVERRIDES/install.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    *)
+      echo "error: unknown mode: $MODE" >&2
+      exit 1
+      ;;
+  esac
+done
