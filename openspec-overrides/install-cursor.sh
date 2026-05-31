@@ -75,12 +75,18 @@ fi
 # --- Validation -------------------------------------------------------------
 
 SKILLS_DIR="$PROJECT_ROOT/.cursor/skills"
+COMMANDS_DIR="$PROJECT_ROOT/.cursor/commands"
 
-# Check for at least one opsx skill
+# Check for at least one opsx skill (directory-based) or command (flat file)
 OPSX_FOUND=false
 if [[ -d "$SKILLS_DIR" ]]; then
   for d in "$SKILLS_DIR"/opsx-*/; do
     [[ -d "$d" ]] && OPSX_FOUND=true && break
+  done
+fi
+if ! $OPSX_FOUND && [[ -d "$COMMANDS_DIR" ]]; then
+  for f in "$COMMANDS_DIR"/opsx-*.md "$COMMANDS_DIR"/opsx-*.toml; do
+    [[ -f "$f" ]] && OPSX_FOUND=true && break
   done
 fi
 
@@ -90,7 +96,7 @@ HAS_OPENSPEC=false
 
 if ! $OPSX_FOUND && ! $HAS_OPENSPEC; then
   log_warn "No OpenSpec structure found at $PROJECT_ROOT"
-  log_warn "Expected: .cursor/skills/opsx-*/ or openspec/ directory"
+  log_warn "Expected: .cursor/skills/opsx-*/ or .cursor/commands/opsx-*.md or openspec/ directory"
   log_warn "Continuing — will install grist skill and AGENTS.md rules."
 fi
 
@@ -130,7 +136,7 @@ if $UNINSTALL; then
   log_info "Uninstalling GRIST OpenSpec overlay from $PROJECT_ROOT"
   echo
 
-  # Remove injection blocks from opsx skill files
+  # Remove injection blocks from opsx skill files (directory-based)
   if [[ -d "$SKILLS_DIR" ]]; then
     for d in "$SKILLS_DIR"/opsx-*/; do
       if [[ -d "$d" ]]; then
@@ -138,6 +144,13 @@ if $UNINSTALL; then
           remove_grist_blocks "$f"
         done
       fi
+    done
+  fi
+
+  # Remove injection blocks from opsx command files (flat .cursor/commands/)
+  if [[ -d "$COMMANDS_DIR" ]]; then
+    for f in "$COMMANDS_DIR"/opsx-*.md "$COMMANDS_DIR"/opsx-*.toml; do
+      [[ -f "$f" ]] && remove_grist_blocks "$f"
     done
   fi
 
@@ -270,33 +283,61 @@ inject_block() {
 }
 
 # Find an opsx skill's workflow file by name stem (propose, apply, archive)
+# Checks .cursor/skills/opsx-<stem>/ (directory skills) first,
+# then falls back to .cursor/commands/opsx-<stem>.md (flat command files).
 find_opsx_workflow() {
   local stem="$1"
-  local dir="$SKILLS_DIR"
 
-  if [[ ! -d "$dir" ]]; then echo ""; return; fi
+  # 1. Directory-based skills (.cursor/skills/)
+  if [[ -d "$SKILLS_DIR" ]]; then
+    for pattern in \
+      "opsx-${stem}" \
+      "opsx_${stem}" \
+      "${stem}"
+    do
+      local skill_dir="$SKILLS_DIR/$pattern"
+      if [[ -d "$skill_dir" && -f "$skill_dir/workflow.md" ]]; then
+        echo "$skill_dir/workflow.md"
+        return
+      fi
+      if [[ -d "$skill_dir" && -f "$skill_dir/SKILL.md" ]]; then
+        echo "$skill_dir/SKILL.md"
+        return
+      fi
+    done
 
-  # Try skill directory with workflow.md
-  for pattern in \
-    "opsx-${stem}" \
-    "opsx_${stem}" \
-    "${stem}"
-  do
-    local skill_dir="$dir/$pattern"
-    if [[ -d "$skill_dir" && -f "$skill_dir/workflow.md" ]]; then
-      echo "$skill_dir/workflow.md"
+    # Fuzzy: any skill directory containing the stem
+    local result
+    result=$(find "$SKILLS_DIR" -maxdepth 2 -name 'workflow.md' -path "*${stem}*" 2>/dev/null | head -1)
+    if [[ -n "$result" ]]; then
+      echo "$result"
       return
     fi
-    if [[ -d "$skill_dir" && -f "$skill_dir/SKILL.md" ]]; then
-      echo "$skill_dir/SKILL.md"
-      return
-    fi
-  done
+  fi
 
-  # Fuzzy: any skill directory containing the stem
-  local result
-  result=$(find "$dir" -maxdepth 2 -name 'workflow.md' -path "*${stem}*" 2>/dev/null | head -1)
-  echo "$result"
+  # 2. Flat command files (.cursor/commands/)
+  if [[ -d "$COMMANDS_DIR" ]]; then
+    for pattern in \
+      "opsx-${stem}.md" \
+      "opsx-${stem}.toml" \
+      "opsx_${stem}.md" \
+      "${stem}.md"
+    do
+      local f="$COMMANDS_DIR/$pattern"
+      if [[ -f "$f" ]]; then
+        echo "$f"
+        return
+      fi
+    done
+
+    # Fuzzy: any command file containing the stem
+    local result
+    result=$(find "$COMMANDS_DIR" -maxdepth 1 -name "*${stem}*" -type f 2>/dev/null | head -1)
+    echo "$result"
+    return
+  fi
+
+  echo ""
 }
 
 # Inject into opsx-propose
@@ -304,7 +345,7 @@ propose_wf=$(find_opsx_workflow "propose")
 if [[ -n "$propose_wf" ]]; then
   inject_block "$propose_wf" "$INJECTIONS_DIR/opsx-propose.md" "Emit|emit|Generate|generate|Create|create"
 else
-  log_warn "opsx-propose skill not found at $SKILLS_DIR — skipping injection"
+  log_warn "opsx-propose skill not found at $SKILLS_DIR or $COMMANDS_DIR — skipping injection"
   log_warn "  (Install OpenSpec skills first, then re-run this installer)"
 fi
 
