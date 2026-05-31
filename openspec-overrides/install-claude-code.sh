@@ -80,7 +80,8 @@ COMMANDS_DIR="$PROJECT_ROOT/.claude/commands"
 # Check for at least one opsx command
 OPSX_FOUND=false
 if [[ -d "$COMMANDS_DIR" ]]; then
-  for f in "$COMMANDS_DIR"/opsx-*.md "$COMMANDS_DIR"/opsx-*.toml; do
+  for f in "$COMMANDS_DIR"/opsx-*.md "$COMMANDS_DIR"/opsx-*.toml \
+            "$COMMANDS_DIR"/opsx/*.md "$COMMANDS_DIR"/opsx/*.toml; do
     [[ -f "$f" ]] && OPSX_FOUND=true && break
   done
 fi
@@ -132,7 +133,8 @@ if $UNINSTALL; then
   echo
 
   if [[ -d "$COMMANDS_DIR" ]]; then
-    for f in "$COMMANDS_DIR"/opsx-*.md "$COMMANDS_DIR"/opsx-*.toml; do
+    for f in "$COMMANDS_DIR"/opsx-*.md "$COMMANDS_DIR"/opsx-*.toml \
+              "$COMMANDS_DIR"/opsx/*.md "$COMMANDS_DIR"/opsx/*.toml; do
       [[ -f "$f" ]] && remove_grist_blocks "$f"
     done
   fi
@@ -267,8 +269,10 @@ find_opsx_command() {
 
   if [[ ! -d "$dir" ]]; then echo ""; return; fi
 
-  # Try common naming patterns
+  # Try common naming patterns (flat and opsx/ subdirectory)
   for pattern in \
+    "opsx/${stem}.md" \
+    "opsx/${stem}.toml" \
     "opsx-${stem}.md" \
     "opsx-${stem}.toml" \
     "opsx:${stem}.md" \
@@ -282,9 +286,9 @@ find_opsx_command() {
     fi
   done
 
-  # Fuzzy: any file containing the stem in name
+  # Fuzzy: any file containing the stem in name (search up to 2 levels deep)
   local result
-  result=$(find "$dir" -maxdepth 1 -name "*${stem}*" -type f 2>/dev/null | head -1)
+  result=$(find "$dir" -maxdepth 2 -name "*${stem}*" -type f 2>/dev/null | head -1)
   echo "$result"
 }
 
