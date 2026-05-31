@@ -91,43 +91,39 @@ HAS_ANTIGRAVITY=false
 [[ -d "$PROJECT_ROOT/.cursor/rules" || -d "$PROJECT_ROOT/.cursor/skills" ]] && HAS_CURSOR=true
 [[ -d "$PROJECT_ROOT/.agents/skills" ]] && HAS_ANTIGRAVITY=true
 
-MODE="${FORCE_MODE:-}"
+MODES=()
 
-if [[ -z "$MODE" ]]; then
-  if $HAS_CLAUDE_CODE && $HAS_CURSOR; then
-    printf "${YELLOW}⚠${NC} Both Claude Code and Cursor detected.\n"
-    printf "  Using Claude Code installer (takes precedence).\n"
-    printf "  Use --cursor to force the Cursor installer.\n\n"
-    MODE="claude-code"
-  elif $HAS_CLAUDE_CODE; then
-    MODE="claude-code"
-  elif $HAS_CURSOR; then
-    MODE="cursor"
-  elif $HAS_ANTIGRAVITY; then
-    MODE="antigravity"
-  else
+if [[ -n "$FORCE_MODE" ]]; then
+  MODES=("$FORCE_MODE")
+else
+  $HAS_CLAUDE_CODE && MODES+=("claude-code")
+  $HAS_CURSOR      && MODES+=("cursor")
+  $HAS_ANTIGRAVITY && MODES+=("antigravity")
+  if [[ ${#MODES[@]} -eq 0 ]]; then
     printf "${YELLOW}⚠${NC} No AI tool detected — using standard schema-only install.\n\n"
-    MODE="standard"
+    MODES+=("standard")
   fi
 fi
 
 # --- Run installer ----------------------------------------------------------
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-printf "${BLUE}GRIST OpenSpec installer${NC} — mode: ${GREEN}%s${NC}\n" "$MODE"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+for MODE in "${MODES[@]}"; do
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  printf "${BLUE}GRIST OpenSpec installer${NC} — mode: ${GREEN}%s${NC}\n" "$MODE"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-case "$MODE" in
-  claude-code)
-    "$OPENSPEC_OVERRIDES/install-claude-code.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  cursor)
-    "$OPENSPEC_OVERRIDES/install-cursor.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  antigravity)
-    "$OPENSPEC_OVERRIDES/install-antigravity.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-  standard|*)
-    "$OPENSPEC_OVERRIDES/install.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
-    ;;
-esac
+  case "$MODE" in
+    claude-code)
+      "$OPENSPEC_OVERRIDES/install-claude-code.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    cursor)
+      "$OPENSPEC_OVERRIDES/install-cursor.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    antigravity)
+      "$OPENSPEC_OVERRIDES/install-antigravity.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+    standard|*)
+      "$OPENSPEC_OVERRIDES/install.sh" "$PROJECT_ROOT" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+      ;;
+  esac
+done

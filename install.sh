@@ -132,9 +132,6 @@ HAS_OPENSPEC=false
 [[ -d "$PROJECT_ROOT/_bmad" && ! -d "$PROJECT_ROOT/.claude/skills" && ! -d "$PROJECT_ROOT/.cursor/skills" && ! -d "$PROJECT_ROOT/.agents/skills" ]] && HAS_BMAD=true
 [[ -d "$PROJECT_ROOT/openspec" ]] && HAS_OPENSPEC=true
 
-# A forced variant implies the user wants BMAD installed (matches previous behaviour)
-[[ -n "$FORCE_MODE" ]] && HAS_BMAD=true
-
 # --- Run BMAD installer -----------------------------------------------------
 
 RAN_SOMETHING=false
