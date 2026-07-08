@@ -8,7 +8,17 @@ Loaded as a persistent fact for `bmad-create-prd`. Stays in context for the full
 
 ## Schema
 
-See `{project-root}/_bmad/custom/grist-schemas/prd.grist.yaml` (also loaded as a persistent fact). Use it verbatim — required fields, field names, ID patterns.
+See `{project-root}/_bmad/custom/grist-schemas/prd.grist.yaml` (also loaded as a persistent fact). Use it verbatim — required fields, field names, ID patterns. Only if unsure of shape, read `grist-schemas/examples/prd.example.grist.yaml`.
+
+## Tight emission style
+
+All emitted GRIST YAML:
+- No comments in the artifact.
+- Flow style `[a, b, c]` for lists of scalars.
+- Omit ALL empty/null optional keys — never `stakeholders: []` or `pm: null`.
+- One-line scalars, ≤200 chars.
+- Compact ids: `E1`, `ac1`, `r1`.
+- No trailing blank sections.
 
 ## Style
 

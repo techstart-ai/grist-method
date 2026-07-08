@@ -50,6 +50,8 @@ When BMAD step files instruct you to update story state (Tasks/Subtasks checkbox
 
 This is append-mostly, no full-file rewrite. The dev agent reads the same YAML next session and sees state without re-parsing prose.
 
+Tight style for every YAML write: no comments in the artifact; flow style `[a, b, c]` for lists of scalars; never add empty/null optional keys (no `blockers: []`, no `notes: []` until there is a note); one-line scalars ≤200 chars; compact ids (`t1`, `ac1`); no trailing blank sections.
+
 ## Sprint-status.yaml handling
 
 When the workflow reads `sprint-status.yaml`:

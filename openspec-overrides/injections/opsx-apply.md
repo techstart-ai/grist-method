@@ -11,6 +11,7 @@ Read `change.grist.yaml` as the primary context. It contains spec deltas, design
 - **Code / tests / comments / commits:** zero compression — normal style.
 - **Read discipline:** never read a whole file >300 lines without a line range; quote ≤5 lines from any doc, reference rest by `path:line`.
 - **State sync:** when ticking a task, set `[x]` in `tasks.md` AND set `tasks[i].done: true` in `change.grist.yaml`.
+- **Tight YAML writes:** no comments; flow lists `[a, b, c]` for scalars; never add empty/null optional keys; one-line scalars ≤200 chars.
 - **On blockers:** halt and ask — do not speculate or skip.
 - **Load context-pack once:** if `.grist/context-pack.md` exists, read it at start of this run and do not re-read.
 

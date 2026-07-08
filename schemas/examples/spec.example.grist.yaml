@@ -1,0 +1,21 @@
+# Filled example for schemas/spec.grist.yaml (tight style)
+spec: auth-login
+version: 0.3.0
+status: active
+purpose: Authenticate users via Okta OIDC and issue session tokens
+requirements:
+  - id: req-1
+    req: SHALL accept OIDC callback with valid code and exchange for tokens
+    scenarios:
+      - {id: s1, when: callback receives code from registered tenant, then: returns 302 with httpOnly session cookie}
+      - {id: s2, when: callback receives invalid or expired code, then: returns 401 with error in body}
+  - id: req-2
+    req: SHALL persist sessions to redis with 8h TTL
+    scenarios:
+      - {when: session created, then: "SET sess:{uid} EX 28800"}
+  - id: req-3
+    req: SHALL revoke sessions on logout
+    scenarios:
+      - {when: user calls /auth/logout, then: "DEL sess:{uid} returns 204"}
+history:
+  - {change: add-okta-mfa, date: 2026-05-06, delta: added req-7}

@@ -1,0 +1,33 @@
+# Filled example for review.grist.yaml (tight style)
+review: S1.1
+story: prd#auth-v2#S1.1
+date: 2026-05-06
+mode: full
+diff_source: feature/auth-v2-okta
+spec: planning-artifacts/story-S1.1.grist.yaml
+layers_ran: [blind, edge, auditor]
+findings:
+  - id: f1
+    class: patch
+    severity: high
+    source: blind+edge
+    loc: apps/web/src/auth/okta.ts:42
+    title: token exchange swallows network errors
+    detail: catch block returns null instead of propagating; downstream sees fake "no session"
+    fix: re-throw or return tagged error result
+  - id: f2
+    class: decision-needed
+    severity: med
+    source: auditor
+    loc: apps/web/src/middleware.ts:18
+    title: session refresh skips audit log
+    detail: ac3 requires audit on every signin/signout; refresh path bypasses logger
+    ac_ref: ac3
+  - id: f3
+    class: defer
+    severity: low
+    source: edge
+    loc: apps/web/src/auth/session.ts:7
+    title: redis client created per request
+    detail: pre-existing; not introduced by this change
+counts: {decision_needed: 1, patch: 1, defer: 1, dismissed: 2}

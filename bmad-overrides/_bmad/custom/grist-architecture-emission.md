@@ -8,7 +8,17 @@ Loaded as a persistent fact for `bmad-create-architecture`. Stays in context for
 
 ## Schema
 
-See `{project-root}/_bmad/custom/grist-schemas/architecture.grist.yaml`. Use the field names verbatim. ID patterns: `C<n>` for components, `d<n>` for decisions, `i<n>` for interfaces, `ar<n>` for arch-level risks.
+See `{project-root}/_bmad/custom/grist-schemas/architecture.grist.yaml`. Use the field names verbatim. ID patterns: `C<n>` for components, `d<n>` for decisions, `i<n>` for interfaces, `ar<n>` for arch-level risks. Only if unsure of shape, read `grist-schemas/examples/architecture.example.grist.yaml`.
+
+## Tight emission style
+
+All emitted GRIST YAML:
+- No comments in the artifact.
+- Flow style `[a, b, c]` for lists of scalars.
+- Omit ALL empty/null optional keys — never `deps: []` or `alts: []`.
+- One-line scalars, ≤200 chars.
+- Compact ids: `C1`, `d1`, `i1`, `ar1`.
+- No trailing blank sections.
 
 ## Style
 

@@ -49,6 +49,8 @@ findings:
 
 Future review passes reference findings by `id` — `review#S1.1#f1` — without re-reading the prose.
 
+Tight emission style for the review YAML: no comments in the artifact; flow style `[a, b, c]` for lists of scalars (e.g. `layers_ran: [blind, edge, auditor]`); omit ALL empty/null optional keys — never `failed_layers: []` or `resolutions: []`; one-line scalars ≤200 chars; compact ids (`f1`); no trailing blank sections. Schema: `grist-schemas/review.grist.yaml`; if unsure of shape, `grist-schemas/examples/review.example.grist.yaml`.
+
 ## Mode: /grist ship for chat output
 
 Banned in your own (orchestrator) chat output:

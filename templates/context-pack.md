@@ -1,57 +1,56 @@
-# Project context pack
+# Project facts checklist
 
-> Cache-aware: stable content only. Volatile (current sprint, in-progress story) lives in `.grist/volatile.md`.
-> Aim ≥1024 tokens stable so Anthropic prompt cache holds it. Re-emitted verbatim every session — agents must NOT re-quote.
+> Stable project facts belong in your CLAUDE.md under a `## Project facts` heading.
+> CLAUDE.md loads once at session start and sits in the always-cached prompt prefix —
+> no Read call ever needed. Keep volatile facts OUT of it (they go in `.grist/volatile.md`,
+> read on demand) so the prefix stays stable and lean.
 
-## Project
+## Sections for CLAUDE.md `## Project facts`
 
-`name`: <project>
-`stack`: see `arch#stack`
-`prd`: prd#<slug>
-`arch`: arch#<slug>
+Copy the sections below into CLAUDE.md, fill the placeholders, keep terse.
 
-## Invariants (from PRD)
+### Project
+- `name`: <project>
+- `prd`: prd#<slug> · `arch`: arch#<slug> (stack: see `arch#stack`)
 
+### Invariants (from PRD)
 <!-- Copy the `invariants:` list from prd.grist.yaml verbatim. These rarely change. -->
 - <invariant 1>
 - <invariant 2>
 
-## Architecture decisions (load-bearing)
-
-<!-- Copy the `decisions:` list from architecture.grist.yaml. Drop the `alts:` field — too noisy for context. -->
+### Architecture decisions (load-bearing)
+<!-- From architecture.grist.yaml `decisions:`. Drop the `alts:` field — too noisy. -->
 - d1: <decision> — <why>
 - d2: <decision> — <why>
 
-## Glossary
-
-<!-- Project-specific terms that newcomers (or agents) need to disambiguate. ≤1 line each. -->
+### Glossary
+<!-- Project-specific terms agents must disambiguate. ≤1 line each. -->
 - <term>: <definition>
 
-## Conventions
-
-<!-- Replaces BMAD's project-context.md. Keep terse. -->
+### Conventions
 - file naming: <pattern>
 - test framework: <name>
 - commit style: conventional commits, ≤50 char subject
 - branch naming: <pattern>
 - review SLA: <duration>
 
-## NFRs (active)
-
+### NFRs (active)
 <!-- From prd.nfrs + arch.nfrs, deduplicated. -->
 - <nfr 1>
 - <nfr 2>
 
-## External dependencies
-
+### External dependencies
 - <name> — <one-line purpose, doc link or `arch#external`>
 
----
+## Volatile — keep OUT of CLAUDE.md
 
-# Volatile — DO NOT INCLUDE IN PACK
-
-Live in `.grist/volatile.md`:
+Lives in `.grist/volatile.md`; agents read it only when phase-relevant:
 - current sprint #
 - in-progress story IDs
 - recent decisions not yet promoted to arch.decisions
 - temporary blockers
+
+## Referencing artifacts
+
+Reference artifacts by ID (`prd#E1`, `arch#C2`), resolved via the `grist-get`
+slice resolver (`gristats/grist-get.py`). Never re-read whole artifact files.

@@ -15,6 +15,7 @@ Subcommands:
     gristats compare <a> <b>          pairwise file comparison
     gristats project <dir>            walk dir for .md ↔ .grist.yaml pairs
     gristats sessions [--days N]      parse Claude Code transcripts
+    gristats rereads [--days N]       count Read-tool re-reads per file
     gristats summary [--days N]       combined dashboard
 """
 from __future__ import annotations
@@ -95,8 +96,12 @@ STORY_YAML_RE = re.compile(r"^(story-[\w\-\.]+?)(?:\.[\w\-]+)?\.grist\.yaml$", r
 def _match_grist(filenames: set[str], stem: str) -> str | None:
     """Find a file matching <stem>(.<variant>)?.grist.yaml, case-insensitive."""
     target_lower = stem.lower()
+    exact = re.compile(rf"^{re.escape(target_lower)}\.grist\.yaml$", re.IGNORECASE)
     pat = re.compile(rf"^{re.escape(target_lower)}(?:\.[\w\-]+)?\.grist\.yaml$", re.IGNORECASE)
-    for f in filenames:
+    for f in sorted(filenames):
+        if exact.match(f):
+            return f
+    for f in sorted(filenames):
         if pat.match(f):
             return f
     return None
@@ -394,6 +399,184 @@ def cmd_sessions(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Layer 3: re-read multiplier --------------------------------------------
+
+GRIST_YAML_RE = re.compile(r"\.grist\.ya?ml$", re.IGNORECASE)
+PLANNING_DIR_PARTS = {
+    "docs", "doc", "planning", "planning-artifacts", "_bmad-output",
+    "openspec", "specs", "changes",
+}
+
+
+@dataclass
+class ReReadStats:
+    path: str
+    reads: int = 0
+    sessions: set[str] = field(default_factory=set)
+    tokens_per_read: int | None = None  # None = file absent locally, size unknown
+
+    @property
+    def est_total(self) -> int:
+        return (self.tokens_per_read or 0) * self.reads
+
+
+def is_grist_artifact(path_str: str) -> bool:
+    return bool(GRIST_YAML_RE.search(path_str))
+
+
+def is_planning_prose(path_str: str) -> bool:
+    """Prose .md living under a docs/planning-style directory."""
+    p = Path(path_str)
+    if p.suffix.lower() != ".md":
+        return False
+    return any(part.lower() in PLANNING_DIR_PARTS for part in p.parts[:-1])
+
+
+def iter_read_tool_uses(jsonl_path: Path):
+    """Yield file_path strings from assistant tool_use blocks named 'Read'."""
+    for turn in iter_session_turns(jsonl_path):
+        if turn.get("type") != "assistant":
+            continue
+        msg = turn.get("message")
+        if not isinstance(msg, dict):
+            continue
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for blk in content:
+            if not isinstance(blk, dict) or blk.get("type") != "tool_use":
+                continue
+            if blk.get("name") != "Read":
+                continue
+            inp = blk.get("input")
+            if isinstance(inp, dict):
+                fp = inp.get("file_path")
+                if isinstance(fp, str) and fp:
+                    yield fp
+
+
+def collect_rereads(days: int | None, project_filter: str | None) -> tuple[dict[str, ReReadStats], int, int]:
+    """Aggregate Read tool uses per file. Returns (stats, total_reads, n_sessions)."""
+    session_paths = discover_sessions(days, project_filter)
+    stats: dict[str, ReReadStats] = {}
+    total_reads = 0
+    for jsonl in session_paths:
+        try:
+            for fp in iter_read_tool_uses(jsonl):
+                total_reads += 1
+                rs = stats.setdefault(fp, ReReadStats(path=fp))
+                rs.reads += 1
+                rs.sessions.add(str(jsonl))
+        except OSError:
+            continue
+    # Estimate tokens/read from *current* file content (best effort).
+    for rs in stats.values():
+        p = Path(rs.path)
+        try:
+            if p.is_file():
+                rs.tokens_per_read = FileStats.of(p).tokens
+        except (OSError, UnicodeError):
+            pass
+    return stats, total_reads, len(session_paths)
+
+
+def find_grist_sibling(prose_path: Path) -> Path | None:
+    """Find the .grist.yaml pair for a prose .md, reusing `project` pairing rules."""
+    d = prose_path.parent
+    try:
+        files = {f.name for f in d.iterdir() if f.is_file()}
+    except OSError:
+        return None
+    name = prose_path.name
+    if name.lower().endswith(".md"):
+        stem_lower = name[:-3].lower()
+        for prose_stem, grist_stem in PAIR_STEMS:
+            if stem_lower == prose_stem:
+                g = _match_grist(files, grist_stem)
+                if g:
+                    return d / g
+    m = STORY_PROSE_RE.match(name)
+    if m:
+        key = m.group(1).lower()
+        for f in files:
+            gm = STORY_YAML_RE.match(f)
+            if gm and gm.group(1).lower() == key:
+                return d / f
+    return None
+
+
+def cmd_rereads(args: argparse.Namespace) -> int:
+    top = getattr(args, "top", 20)
+    brief = getattr(args, "brief", False)
+    stats, total_reads, n_sessions = collect_rereads(args.days, args.project)
+
+    scope = f"last {args.days}d" if args.days else "all time"
+    if n_sessions == 0:
+        print(f"no Claude Code sessions found ({scope}, project filter: {args.project or 'none'})")
+        print(f"  expected at: {CLAUDE_PROJECTS_DIR}")
+        return 0
+    if not stats:
+        print(f"no Read tool uses found in {n_sessions} session(s) ({scope})")
+        return 0
+
+    if not brief:
+        print(f"tokenizer: {TOKENIZER}")
+        print(f"scanning:  {n_sessions} session(s) ({scope}, project filter: {args.project or 'none'})\n")
+
+    ranked = sorted(stats.values(), key=lambda r: (r.est_total, r.reads), reverse=True)
+    print(f"{'file':<60} {'reads':>6} {'sessions':>9} {'est-tok/read':>13} {'est-total':>10}")
+    print("-" * 102)
+    for rs in ranked[:top]:
+        name = rs.path
+        if len(name) > 58:
+            name = "…" + name[-57:]
+        tok = str(rs.tokens_per_read) if rs.tokens_per_read is not None else "?"
+        total = fmt_tokens(rs.est_total) if rs.tokens_per_read is not None else "?"
+        print(f"{name:<60} {rs.reads:>6} {len(rs.sessions):>9} {tok:>13} {total:>10}")
+    print("-" * 102)
+
+    grand_total = sum(r.est_total for r in stats.values())
+    unknown = sum(1 for r in stats.values() if r.tokens_per_read is None)
+    print(f"total Reads observed: {total_reads} across {len(stats)} distinct files "
+          f"— est {fmt_tokens(grand_total)} tokens re-read"
+          + (f" ({unknown} files absent locally, size unknown)" if unknown else ""))
+
+    grist_stats = [r for r in stats.values() if is_grist_artifact(r.path)]
+    prose_stats = [r for r in stats.values() if is_planning_prose(r.path)]
+    g_reads = sum(r.reads for r in grist_stats)
+    p_reads = sum(r.reads for r in prose_stats)
+    g_tok = sum(r.est_total for r in grist_stats)
+    p_tok = sum(r.est_total for r in prose_stats)
+    print(f"planning artifacts: {g_reads + p_reads} reads / est {fmt_tokens(g_tok + p_tok)} tokens "
+          f"— {len(grist_stats)} .grist.yaml ({g_reads} reads, {fmt_tokens(g_tok)} tok), "
+          f"{len(prose_stats)} prose .md ({p_reads} reads, {fmt_tokens(p_tok)} tok)")
+
+    # Potential savings: prose files with a .grist.yaml sibling pair.
+    saved = 0
+    paired = 0
+    for rs in stats.values():
+        p = Path(rs.path)
+        if p.suffix.lower() != ".md" or not p.is_file():
+            continue
+        grist = find_grist_sibling(p)
+        if grist is None or rs.tokens_per_read is None:
+            continue
+        try:
+            g_tokens = FileStats.of(grist).tokens
+        except (OSError, UnicodeError):
+            continue
+        delta = (rs.tokens_per_read - g_tokens) * rs.reads
+        if delta > 0:
+            saved += delta
+            paired += 1
+    if paired:
+        print(f"potential savings: {fmt_tokens(saved)} tokens — estimated tokens saved if agents "
+              f"read the YAML instead ({paired} prose file(s) with a .grist.yaml sibling)")
+    else:
+        print("potential savings: none detected (no re-read prose file has a .grist.yaml sibling)")
+    return 0
+
+
 def cmd_summary(args: argparse.Namespace) -> int:
     print("=" * 72)
     print("GRIST stats summary")
@@ -405,6 +588,9 @@ def cmd_summary(args: argparse.Namespace) -> int:
         print()
     print(">>> session token usage")
     cmd_sessions(argparse.Namespace(days=args.days, project=args.project, verbose=False))
+    print()
+    print(">>> re-read files (top 5)")
+    cmd_rereads(argparse.Namespace(days=args.days, project=args.project, top=5, brief=True))
     return 0
 
 
@@ -522,6 +708,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_sess.add_argument("--project", help="substring filter on project hash dir name")
     p_sess.add_argument("--verbose", "-v", action="store_true", help="per-session breakdown")
     p_sess.set_defaults(func=cmd_sessions)
+
+    p_rr = sub.add_parser("rereads", help="count Read-tool re-reads per file across transcripts")
+    p_rr.add_argument("--days", type=int, default=None, help="restrict to last N days (default: all)")
+    p_rr.add_argument("--project", help="substring filter on project hash dir name")
+    p_rr.add_argument("--top", type=int, default=20, help="rows to show (default: 20)")
+    p_rr.set_defaults(func=cmd_rereads)
 
     p_sum = sub.add_parser("summary", help="combined dashboard")
     p_sum.add_argument("--dir", help="project root for artifact pairs (optional)")

@@ -9,6 +9,7 @@ H2 section if present.
 Usage:
     python bmad-prd-to-grist.py PRD.md > prd.grist.yaml
     python bmad-prd-to-grist.py PRD.md --slug auth-v2 > prd.grist.yaml
+    python bmad-prd-to-grist.py PRD.md -o prd.grist.yaml
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ HEADING_MAP = {
     "goal": ["goal", "goals", "objective", "objectives"],
     "nonGoals": ["non-goals", "non goals", "out of scope"],
     "invariants": ["invariants", "constraints", "must-haves"],
-    "epics": ["epics", "epic list", "features"],
+    "epics": ["epics", "epic list", "features", "functional requirements"],
     "acceptance": ["acceptance criteria", "success criteria", "definition of done"],
     "risks": ["risks", "risks and mitigations", "risks & mitigations"],
     "nfrs": ["non-functional requirements", "nfrs", "nfr", "performance", "quality attributes"],
@@ -83,10 +84,17 @@ def parse_epics(body: str) -> list[dict]:
         for i, blk in enumerate(h3_blocks[1:], start=1):
             lines = blk.splitlines()
             title = lines[0].strip() if lines else f"Epic {i}"
-            stories = [
-                s.strip() for s in re.findall(r"\b(S\d+\.\d+)\b", blk)
-            ]
-            epics.append({"id": f"E{i}", "title": title, "stories": stories or []})
+            # "Epic E1 — Okta OIDC integration" → id E1, title after the dash
+            eid = f"E{i}"
+            m = re.match(r"^Epic\s+(E\d+)\s*[:—–-]?\s*(.*)$", title, re.IGNORECASE)
+            if m:
+                eid = m.group(1)
+                title = m.group(2).strip() or title
+            stories: list[str] = []
+            for s in re.findall(r"\b(S\d+\.\d+)\b", blk):
+                if s not in stories:
+                    stories.append(s)
+            epics.append({"id": eid, "title": title, "stories": stories})
         return epics
     for i, line in enumerate(parse_bullets(body), start=1):
         epics.append({"id": f"E{i}", "title": line, "stories": []})
@@ -188,6 +196,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("path", type=Path)
     ap.add_argument("--slug", help="PRD slug (default: file stem)")
+    ap.add_argument(
+        "-o", "--output", type=Path,
+        help="write output to this path (default: stdout)",
+    )
     args = ap.parse_args()
 
     md = args.path.read_text(encoding="utf-8")
@@ -210,7 +222,11 @@ def main() -> int:
         else:
             data[key] = parse_bullets(body)
 
-    sys.stdout.write(emit(slug, data))
+    text = emit(slug, data)
+    if args.output:
+        args.output.write_text(text, encoding="utf-8")
+    else:
+        sys.stdout.write(text)
     return 0
 
 
