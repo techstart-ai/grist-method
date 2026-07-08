@@ -1,9 +1,10 @@
 # gristats
 
-Measure GRIST token impact. Two layers:
+Measure GRIST token impact. Three layers:
 
 1. **Artifact size comparison** (offline, deterministic) — compares prose `.md` to `.grist.yaml` equivalents using bytes + token estimates.
 2. **Claude Code session tracking** (real input/output tokens) — parses `~/.claude/projects/<hash>/<session>.jsonl` transcripts, groups token usage by GRIST phase (`design` / `iterate` / `ship`), reports cache hit rate.
+3. **Re-read multiplier** (`rereads`) — counts how often each file is re-read via the `Read` tool across sessions, the multiplier that turns an artifact size cut into actual savings.
 
 No external dependencies required — falls back to a `chars/4` heuristic. Install `tiktoken` for accurate token counts.
 
@@ -119,13 +120,64 @@ Columns:
 
 `--project <substring>` filters to sessions whose project hash dir contains the substring. Useful when you have many parallel projects.
 
+### `gristats rereads [--days N] [--project <substring>] [--top N]`
+
+Measures the *multiplier* side of the savings equation: savings = (size cut) × (how often the artifact is re-read). Parses the same Claude Code transcripts as `sessions`, extracts every `Read` tool call from assistant turns, and aggregates per file: read count, distinct sessions, and estimated tokens per read (tokenizing the file's current content if it still exists locally; `?` if it's gone).
+
+```
+$ gristats rereads --days 7
+
+tokenizer: tiktoken-cl100k_base
+scanning:  50 session(s) (last 7d, project filter: none)
+
+file                                                          reads  sessions  est-tok/read  est-total
+------------------------------------------------------------------------------------------------------
+…planning-artifacts/architecture.md                              14         5          5018      70.3k
+…planning-artifacts/PRD.md                                        9         4          3142      28.3k
+…planning-artifacts/PRD.grist.yaml                                6         3           412       2.5k
+------------------------------------------------------------------------------------------------------
+total Reads observed: 1243 across 427 distinct files — est 4.52M tokens re-read
+planning artifacts: 39 reads / est 286.7k tokens — 8 .grist.yaml (8 reads, 7.1k tok), 11 prose .md (31 reads, 279.6k tok)
+potential savings: 96.1k tokens — estimated tokens saved if agents read the YAML instead (2 prose file(s) with a .grist.yaml sibling)
+```
+
+- Table shows the top 20 files by estimated total re-read tokens (`--top` to change).
+- **planning artifacts** line splits re-reads of `.grist.yaml` files vs prose `.md` files that live under a docs/planning-style directory (`docs/`, `planning/`, `planning-artifacts/`, `_bmad-output/`, `openspec/`, `specs/`, `changes/`).
+- **potential savings** footer: for each re-read prose `.md` that has a `.grist.yaml` sibling (same pairing rules as `project`), sums (prose tokens − grist tokens) × read count — the tokens you'd have saved if agents had read the YAML instead.
+
+Caveats specific to `rereads`:
+
+- **Estimates use the file's *current* content, not its content at read time.** A file that grew since it was read overstates history; a deleted file shows `?` and contributes nothing to totals.
+- **Only the `Read` tool is counted.** File content pulled in via `grep`, `cat`, `head`, `@`-mentions, or system-reminder injections is invisible here, so counts are a floor, not a ceiling.
+- **Partial reads count as full reads.** `Read` calls with offset/limit are tokenized as the whole file.
+
 ### `gristats summary [--dir <path>] [--days N]`
 
-Combined dashboard — runs `project` and `sessions` together with one invocation.
+Combined dashboard — runs `project`, `sessions`, and `rereads` (top 5 files) together with one invocation.
 
 ```
 $ gristats summary --dir _bmad-output --days 7
 ```
+
+## grist-get — slice resolver
+
+Companion tool in this directory. Resolves an ID reference to just the matching YAML node instead of a whole-artifact read — the mechanism that makes address-by-ID actually save tokens.
+
+```bash
+# resolve a slice (~30 tokens back, not a whole file)
+python3 gristats/grist-get.py 'prd#E1' --dir <artifacts-dir>
+# examples/auth-v2/PRD.grist.yaml:15
+# - id: E1
+#   title: Okta OIDC integration
+#   stories: [S1.1, S1.2, S1.3]
+
+python3 gristats/grist-get.py 'prd#goal'            # top-level key
+python3 gristats/grist-get.py 'prd#auth-v2#E1'      # disambiguate by slug
+python3 gristats/grist-get.py 'prd#E1.S1.1'         # dotted path — prints the story file if one exists
+python3 gristats/grist-get.py --list prd            # discover addressable ids
+```
+
+Ref grammar: `<type>[#<slug>]#<id-path>`, type ∈ prd | arch | story | spec | change | review. Zero required deps — uses PyYAML when importable, otherwise a built-in parser for the GRIST YAML subset (no anchors, block scalars, or nested flow collections). Exit 1 with candidates listed on ambiguity or miss.
 
 ## Caveats
 

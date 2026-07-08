@@ -1,0 +1,33 @@
+# Filled example for change.grist.yaml (tight style)
+change: add-okta-mfa
+spec: auth-login
+status: proposed
+why: enterprise tenant requires MFA after SSO; gates 1 deal
+delta:
+  add:
+    - id: req-7
+      req: SHALL prompt for MFA after okta callback if tenant.mfa_required=true
+      scenarios:
+        - tenant has mfa_required=true → user redirected to /mfa
+        - tenant has mfa_required=false → session issued directly
+  modify:
+    - {id: req-3, from: session issued after okta callback, to: session issued after mfa pass (if required) or okta callback (if not), reason: MFA gate inserted into flow}
+design:
+  approach: middleware checks tenant.mfa_required, redirects pre-session
+  alts:
+    - {option: client-side check, rejected: bypassable}
+    - {option: separate endpoint with state passing, rejected: state-mgmt complexity}
+  affects: [arch#C1]
+tasks:
+  - {id: t1, do: add tenant.mfa_required column, files: [migrations/0042_tenant_mfa.sql]}
+  - {id: t2, do: middleware MFA gate, files: [apps/web/src/middleware.ts]}
+  - {id: t3, do: /mfa route + verifier, files: [apps/web/src/auth/mfa.ts]}
+  - {id: t4, do: e2e test for both paths, files: [tests/e2e/auth-mfa.spec.ts]}
+risks:
+  - {id: cr1, risk: existing tenants without column default to false unexpectedly, mitigation: backfill default = tenant.plan == 'enterprise'}
+migration:
+  required: true
+  steps:
+    - add column tenant.mfa_required bool default false
+    - backfill enterprise tenants to true
+  rollback: drop column; sessions revert to pre-mfa flow

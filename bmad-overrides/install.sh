@@ -60,9 +60,10 @@ fi
 
 if $DRY_RUN; then
   echo "[dry-run] Would create directory _bmad/custom/grist-schemas"
+  echo "[dry-run] Would create directory _bmad/custom/grist-schemas/examples"
   echo "[dry-run] Would create directory _bmad/custom/grist-scripts"
 else
-  mkdir -p "$PROJECT_ROOT/_bmad/custom/grist-schemas" \
+  mkdir -p "$PROJECT_ROOT/_bmad/custom/grist-schemas/examples" \
            "$PROJECT_ROOT/_bmad/custom/grist-scripts"
 fi
 
@@ -100,6 +101,17 @@ for f in prd architecture story change review; do
     cp "$SRC_ROOT/_bmad/custom/grist-schemas/$f.grist.yaml" \
        "$PROJECT_ROOT/_bmad/custom/grist-schemas/$f.grist.yaml"
     echo "wrote: _bmad/custom/grist-schemas/$f.grist.yaml"
+  fi
+done
+
+# 3b. Schema examples — always overwrite
+for f in prd architecture story change review; do
+  if $DRY_RUN; then
+    echo "[dry-run] Would write: _bmad/custom/grist-schemas/examples/$f.example.grist.yaml"
+  else
+    cp "$SRC_ROOT/_bmad/custom/grist-schemas/examples/$f.example.grist.yaml" \
+       "$PROJECT_ROOT/_bmad/custom/grist-schemas/examples/$f.example.grist.yaml"
+    echo "wrote: _bmad/custom/grist-schemas/examples/$f.example.grist.yaml"
   fi
 done
 

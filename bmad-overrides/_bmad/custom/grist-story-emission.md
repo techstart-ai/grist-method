@@ -8,7 +8,17 @@ Loaded as a persistent fact for `bmad-create-story`. Stays in context for the fu
 
 ## Schema
 
-See `{project-root}/_bmad/custom/grist-schemas/story.grist.yaml`. ID pattern: `S<epic>.<n>` (e.g. `S1.1`, `S1.2`, `S2.1`).
+See `{project-root}/_bmad/custom/grist-schemas/story.grist.yaml`. ID pattern: `S<epic>.<n>` (e.g. `S1.1`, `S1.2`, `S2.1`). Only if unsure of shape, read `grist-schemas/examples/story.example.grist.yaml`.
+
+## Tight emission style
+
+All emitted GRIST YAML:
+- No comments in the artifact.
+- Flow style `[a, b, c]` for lists of scalars.
+- Omit ALL empty/null optional keys — never `deps: []` or `blockers: []`.
+- One-line scalars, ≤200 chars.
+- Compact ids: `S1.1`, `t1`, `ac1`.
+- No trailing blank sections.
 
 ## Style
 

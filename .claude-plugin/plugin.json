@@ -1,0 +1,19 @@
+{
+  "name": "grist",
+  "description": "Token-efficient mode for AI coding agents — YAML planning artifacts, ID-addressed references, read-discipline hooks. 4 modes: /grist chat|design|iterate|ship.",
+  "version": "1.2.0",
+  "author": {
+    "name": "techstart-ai"
+  },
+  "homepage": "https://github.com/techstart-ai/grist-method",
+  "repository": "https://github.com/techstart-ai/grist-method",
+  "license": "MIT",
+  "keywords": [
+    "token-efficiency",
+    "context-management",
+    "yaml",
+    "planning",
+    "hooks",
+    "workflow"
+  ]
+}

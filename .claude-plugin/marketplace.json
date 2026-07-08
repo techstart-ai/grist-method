@@ -1,0 +1,14 @@
+{
+  "name": "grist-method",
+  "owner": {
+    "name": "techstart-ai"
+  },
+  "description": "GRIST — token-efficiency overlay for AI coding agents. Single-plugin marketplace hosting the grist plugin.",
+  "plugins": [
+    {
+      "name": "grist",
+      "source": "./",
+      "description": "Token-efficient mode for AI coding agents — YAML planning artifacts, ID-addressed references, read-discipline hooks. 4 modes: /grist chat|design|iterate|ship."
+    }
+  ]
+}

@@ -24,7 +24,18 @@ jobs:
     - name: Run OpenSpec Claude Code Smoke Test
       run: ./test/smoke-test-openspec.sh
 
+    - name: Run Cursor Smoke Test
+      run: ./test/smoke-test-cursor.sh
+
+    - name: Run Compression Ratio Check
+      run: ./test/smoke-test-ratio.sh
+
+    - name: Run Converter Unit Tests
+      run: python3 -m unittest discover converters -v
+
     - name: Run Gristats CLI Checks
       run: |
         python3 gristats/gristats.py project examples/auth-v2/
         python3 converters/bmad-prd-to-grist.py examples/auth-v2/PRD.md > /tmp/check.yaml
+        python3 gristats/grist-get.py 'prd#E1' --dir examples/auth-v2
+        python3 gristats/grist-get.py --list prd --dir examples/auth-v2

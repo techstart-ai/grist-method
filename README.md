@@ -17,19 +17,31 @@ A typical sprint loop with an AI coding agent re-reads the same planning artifac
 
 GRIST attacks the input side directly:
 
-1. **Compress the artifacts themselves.** A 5-page PRD becomes a 30-line YAML with the same load-bearing facts. Every re-injection is now 8–15× cheaper.
-2. **Tighten inter-agent handoffs.** Analyst → PM → Architect → Dev hops use line-format references (`prd#E1.S1.1`, `arch#C2`) instead of re-pasting upstream artifacts.
-3. **Kill coding-phase narration.** Ship mode bans preambles, end-of-turn summaries, task restatement — saves another 25–35% on every coding turn.
-4. **Cache-aware document layout.** Stable content goes in a single `context-pack.md` ≥1024 tokens (Anthropic prompt cache threshold), so re-reads land on cache hits.
-5. **Measure it.** `gristats` parses your Claude Code transcripts and reports per-phase input / output / cache-hit breakdowns.
+1. **Compress the artifacts themselves.** A 5-page PRD becomes a 30-line YAML with the same load-bearing facts. Every re-injection is now several times cheaper (the bundled fixture measures 4.4×).
+2. **Resolve references as slices, not files.** Handoffs use ID references (`prd#E1.S1.1`, `arch#C2`), and the `grist-get` resolver returns just that YAML node — a 30-token slice instead of a whole-file read.
+3. **Enforce read discipline with hooks, not hope.** A PreToolUse hook denies whole-file reads >300 lines (use a line range or grep first); a PostToolUse hook validates emitted `.grist.yaml`. Prompt rules drift; hooks don't.
+4. **Kill coding-phase narration.** Ship mode bans preambles, end-of-turn summaries, task restatement.
+5. **Put stable facts where the cache already is.** Project invariants live in CLAUDE.md `## Project facts` (loaded once into the cached prefix, never re-Read); volatile state stays in `.grist/volatile.md`.
+6. **Measure it.** `gristats` parses your Claude Code transcripts: per-phase token breakdowns, cache hit rate, and a `rereads` report showing which files you re-read most and what YAML siblings would save.
 
 ---
 
 ## Quick start
 
+### Claude Code — plugin install (recommended, no clone needed)
+
+```
+/plugin marketplace add techstart-ai/grist-method
+/plugin install grist@grist-method
+```
+
+The plugin ships the grist skill, the `/grist` command, and both enforcement hooks. `/grist chat` and `/grist ship` work immediately — no project files required. You only need `install.sh` for BMAD/OpenSpec overlays, the CLAUDE.md project-facts block, and non-Claude tools. See [docs/plugin-install.md](docs/plugin-install.md).
+
+### Everything else — installer
+
 ```bash
-git clone https://github.com/<your-username>/grist.git
-cd grist
+git clone https://github.com/techstart-ai/grist-method.git
+cd grist-method
 ```
 
 ### Auto-detect Installation
@@ -42,9 +54,10 @@ The unified installer auto-detects your project type (BMAD npm, Claude Code skil
 
 Or force a specific installation:
 ```bash
-././install.sh --claude-code /path/to/your/project
+./install.sh --claude-code /path/to/your/project
 ./install.sh --cursor /path/to/your/project
 ./install.sh --antigravity /path/to/your/project
+./install.sh --codex /path/to/your/project        # AGENTS.md rules only
 ./install.sh --bmad-npm /path/to/your/project
 ./install.sh --openspec /path/to/your/project
 ```
@@ -64,6 +77,9 @@ Copy `rules/grist-activate.md` into your agent's rule directory:
 | Windsurf | `.windsurf/rules/grist.md` | `trigger: always_on` |
 | Cline | `.clinerules/grist.md` | (none — auto-discovered) |
 | Copilot | `.github/copilot-instructions.md` | (append) |
+| Codex | `AGENTS.md` | (use `./install.sh --codex`) |
+
+The skill also runs on claude.ai chat: zip `skills/grist/` and upload it under Settings → Capabilities → Skills (hooks don't apply there; chat mode doesn't need them).
 
 Activate per session with `/grist chat`, `/grist design`, `/grist iterate`, or `/grist ship`.
 
@@ -88,25 +104,22 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 
 ```
 .
+├── .claude-plugin/             # Claude Code plugin + marketplace manifests
 ├── skills/grist/SKILL.md       # Four-mode behavior spec (chat / design / iterate / ship)
-├── rules/grist-activate.md     # Always-on rules for Cursor / Windsurf / Claude / Cline / Copilot
+├── rules/grist-activate.md     # Always-on rules for Cursor / Windsurf / Claude / Cline / Copilot / Codex
 ├── cursor-rules/grist.mdc      # Cursor-specific always-on .mdc rule
-├── schemas/                    # YAML schemas for all artifact types
-│   ├── prd.grist.yaml          # BMAD product requirements doc
-│   ├── architecture.grist.yaml # BMAD architecture doc
-│   ├── story.grist.yaml        # BMAD story
-│   ├── review.grist.yaml       # BMAD code review findings
-│   ├── change.grist.yaml       # OpenSpec change proposal (replaces 4-file layout)
-│   └── spec.grist.yaml         # OpenSpec long-lived capability spec
+├── hooks/                      # Enforcement: read-discipline (PreToolUse), YAML validation (PostToolUse)
+├── schemas/                    # Lean YAML contracts (prd, architecture, story, review, change, spec)
+│   └── examples/               # Filled examples — read only when unsure of shape
 ├── templates/
-│   └── context-pack.md         # Cache-aware project context (≥1024 stable tokens)
-├── converters/
-│   └── bmad-prd-to-grist.py    # Migrate existing prose PRDs to YAML
+│   └── context-pack.md         # Checklist: what belongs in CLAUDE.md `## Project facts`
+├── converters/                 # Prose → YAML migrators: bmad-{prd,architecture,story}-to-grist.py
 ├── bmad-overrides/             # BMAD plugin overlay (5 workflows)
 ├── openspec-overrides/         # OpenSpec custom schema bundle
-├── gristats/                   # Token-impact measurement CLI
-├── commands/grist.toml         # /grist slash-command for Claude Code
-└── examples/auth-v2/           # Filled examples for validation
+├── gristats/                   # Measurement CLI + grist-get.py slice resolver
+├── commands/                   # /grist slash-command for Claude Code
+├── docs/plugin-install.md      # Plugin vs installer coverage
+└── examples/auth-v2/           # Realistic fixtures (4.4× measured compression)
 ```
 
 ---
@@ -123,7 +136,11 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 | Windsurf (always-on rule via `.windsurf/rules/`) | Shipped | `rules/grist-activate.md` |
 | Cline (`.clinerules/`) | Shipped | `rules/grist-activate.md` |
 | GitHub Copilot (`copilot-instructions.md`) | Shipped | `rules/grist-activate.md` |
-| `gristats` (Claude Code transcript parser by phase) | Shipped | `gristats/` |
+| Codex (`AGENTS.md`) | Shipped | `./install.sh --codex` |
+| Claude Code plugin (skill + command + hooks, no clone) | Shipped | `.claude-plugin/` |
+| Enforcement hooks (read discipline, YAML validation) | Shipped | `hooks/` |
+| `grist-get` slice resolver (`prd#E1` → 30-token node) | Shipped | `gristats/grist-get.py` |
+| `gristats` (phase breakdown, cache rate, re-read report) | Shipped | `gristats/` |
 | Hermes-agent (persistent memory adapter) | Planned | Roadmap |
 
 ---
@@ -136,7 +153,7 @@ GRIST runs in one of four modes, each tuned to a phase of your workflow:
 
 | Mode | Phase | Behavior |
 |---|---|---|
-| `/grist chat` | General Q&A / Debugging | Normal chat. Token saving mode matching the "caveman" style. Ultra-terse chat, no YAML artifact generation. |
+| `/grist chat` | General Q&A / Debugging | Cheap-context mode, no framework needed. Read discipline, never re-paste code (cite `path:line`), sub-agent searches return `path:line — symbol — note` only, durable discoveries appended to `.grist/facts.yaml` so the next session skips re-exploration. Defers output style to caveman if active. |
 | `/grist design` | BMAD Analysis / Planning / Solutioning | Lite chat. Emit PRDs, Architecture, Stories as structured YAML. No narration before/after artifact writes. |
 | `/grist iterate` | OpenSpec change proposals | Ultra chat. Single `change.grist.yaml` replaces 4-file proposal. Reference specs by ID; never re-paste. |
 | `/grist ship` | Implementation | Ultra chat. Zero compression in code/tests/commits. No preambles, no end-of-turn summaries, no task restatement. Read-discipline rules. |
@@ -153,20 +170,34 @@ epics:
     stories: [S1.1, S1.2, S1.3]
 ```
 
-Downstream agents reference slices like `prd#auth-v2#E1.S1.1` instead of re-pasting the relevant prose section. A 50-character reference replaces a 500-token paragraph.
+Downstream agents reference slices like `prd#auth-v2#E1.S1.1` instead of re-pasting the relevant prose section. A 50-character reference replaces a 500-token paragraph — and the resolver makes it real:
 
-### Cache-aware layout
+```bash
+$ python3 gristats/grist-get.py 'prd#E1'
+# examples/auth-v2/PRD.grist.yaml:15
+- id: E1
+  title: Okta OIDC integration
+  stories: [S1.1, S1.2, S1.3]
 
-Anthropic's prompt cache has a 5-minute TTL and a 1024-token minimum cacheable prefix. GRIST's `templates/context-pack.md` is structured so the stable content (PRD invariants, architecture decisions, glossary, conventions) sits in a single file ≥1024 tokens that gets cached after the first session load. Volatile content (current sprint, in-progress story) lives in `.grist/volatile.md`, outside the pack.
+$ python3 gristats/grist-get.py --list prd    # discover addressable ids
+```
 
-### Read discipline
+Zero dependencies (PyYAML optional). Agents resolve a slice in ~30 tokens instead of reading the whole artifact.
 
-Ship mode adds rules that bite every turn:
+### Context placement
+
+Claude Code caches the whole conversation prefix automatically. GRIST puts stable project facts (PRD invariants, load-bearing decisions, glossary, conventions) in CLAUDE.md under `## Project facts` — loaded once at session start into that cached prefix, never Read again. Volatile state (current sprint, in-progress story) lives in `.grist/volatile.md`, read only when phase-relevant, so it never churns the prefix. `templates/context-pack.md` is the checklist for what goes where.
+
+### Read discipline — enforced, not requested
+
+Rules that bite every turn:
 
 - Never read whole files >300 lines without an explicit line range.
 - Quote ≤5 lines from any document; reference the rest by `path:line`.
 - Sub-agent searches return only `path:line — symbol — note` lines.
 - Tool output >500 tokens is summarized before quoting back into chat.
+
+Prompt rules drift over long sessions, so GRIST also ships hooks: `hooks/read-discipline.py` (PreToolUse) denies whole-file reads >300 lines with guidance to use a range or grep first (`*.grist.yaml`, CLAUDE.md, AGENTS.md exempt; `GRIST_NO_HOOKS=1` to bypass), and `hooks/validate-grist-yaml.py` (PostToolUse) blocks malformed artifact writes before they poison downstream agents. Installed automatically by the plugin, or wired into `.claude/settings.json` by `install.sh`.
 
 ---
 
@@ -221,7 +252,7 @@ nfrs:
   - p95 < 200ms for /auth/*
 ```
 
-Same load-bearing facts, ~15% the tokens. Stakeholder readers get a parallel `prd.md` (auto-generated rendering); downstream agents read the YAML.
+Same load-bearing facts, a fraction of the tokens. The bundled fixture measures it honestly: `gristats project examples/auth-v2/` reports a 2,500-word realistic PRD compressing to 77.4% fewer tokens (4.4× ratio), and `test/smoke-test-ratio.sh` guards that ≥3× in CI. Stakeholder readers get a parallel `prd.md` rendering on request; downstream agents read the YAML.
 
 ---
 
@@ -267,6 +298,22 @@ TOTAL                                          11601       1817   84.3%
 overall ratio: 6.4× (prose / grist)
 ```
 
+And the re-read multiplier — which files your sessions actually re-read, and what YAML siblings would save:
+
+```
+$ gristats rereads --days 7
+
+file                                    reads  sessions  est-tok/read  est-total
+---------------------------------------------------------------------------------
+docs/planning/payment-plan.md               9         1         10484      94.4k
+...
+total Reads observed: 1243 across 427 distinct files — est 4.52M tokens re-read
+planning artifacts: 39 reads / est 286.7k tokens — 8 .grist.yaml (7.1k tok), 11 prose .md (279.6k tok)
+potential savings: (prose − grist) × reads for every paired file
+```
+
+Savings = size cut × re-read frequency; `rereads` measures the second factor on your real transcripts.
+
 See [gristats/README.md](gristats/README.md) for caveats and full subcommand reference.
 
 ---
@@ -276,7 +323,7 @@ See [gristats/README.md](gristats/README.md) for caveats and full subcommand ref
 - **BMAD-method**: ≥ 6.0 (uses the `[workflow]` customization namespace and `_bmad/custom/` resolver).
 - **OpenSpec**: any version that supports custom schemas via `openspec/schemas/<name>/`. See [OpenSpec customization docs](https://github.com/Fission-AI/OpenSpec/blob/main/docs/customization.md).
 - **Python**: ≥ 3.7 for the converter and `gristats` (uses `from __future__ import annotations`).
-- **Claude Code**, **Cursor**, **Google Antigravity**, **Windsurf**, **Cline**, **Copilot**: rule-file injection works on all current versions.
+- **Claude Code**, **Cursor**, **Google Antigravity**, **Windsurf**, **Cline**, **Copilot**, **Codex**: rule-file injection works on all current versions.
 
 GRIST adds no required runtime dependencies. Optional: `pip install tiktoken` for more accurate token counts in `gristats`.
 
@@ -287,7 +334,6 @@ GRIST adds no required runtime dependencies. Optional: `pip install tiktoken` fo
 - **Hermes-agent adapter** — map `architecture.grist.yaml` invariants → `MEMORY.md`, user-specific preferences → `USER.md`, behavioral rules → `SOUL.md`.
 - **CI sync workflow** — single source of truth for schemas + auto-distribute to `.cursor/`, `.windsurf/`, etc., similar to caveman's existing GitHub Actions sync.
 - **Spec-merge command** — `gristats merge-deltas` that applies a `change.grist.yaml.delta` block to a `spec.grist.yaml` outside the OpenSpec archive flow.
-- **More converters** — BMAD architecture and story prose-to-YAML migrators (PRD migrator already shipped).
 - **A/B harness** — run identical workflows with and without GRIST, report token-cost delta directly.
 
 Open an issue or PR if you want to take any of these on.

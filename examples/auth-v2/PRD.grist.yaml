@@ -1,38 +1,59 @@
 prd: auth-v2
 phase: planning
-inputs: []
-problem: Enterprise customers cannot use the product because we do not support SSO. Three deals worth a combined $480k ARR are blocked in procurement awaiting OIDC support. Every week we delay loses one expansion conversation.
-goal: Ship OIDC-based SSO with Okta as the first IdP, generic OIDC support to follow within the same quarter. The existing email/password path must continue to work for non-enterprise tenants without behavioural change.
+inputs: [brief.md, q3-pipeline-review, procurement-feedback]
+problem: 3 enterprise deals ($480k ARR) blocked in procurement on SSO — hard gate; SSO in 9/14 enterprise losses last 2q; ~1 expansion convo lost/wk; pwd-resets ≈6% of tickets
+evidence:
+  - {account: northwind, arr: $210k, seats: 400, note: only open finding is no-SSO; budget reallocates at quarter end}
+  - {account: contoso, arr: $175k, seats: 300, note: okta tenant; SSO mandatory; design partner w/ sandbox}
+  - {account: fabrikam, arr: $95k, seats: 150, note: CISO rejected pwd flow; session ≤ 1 workday; flagged 30d remember-me}
+goal: OIDC SSO w/ Okta first IdP; generic OIDC same quarter; email/pwd unchanged for non-enterprise
+metrics:
+  - {id: G1, target: 3 blocked deals pass auth review ≤30d post-GA}
+  - {id: G2, target: ≥99.5% okta signin success first 60d excl customer misconfig}
+  - {id: G3, target: <0.5% sessions see re-auth prompt within 8h}
+  - {id: G4, target: zero email/pwd regression 30d pre vs post}
+  - {id: G5, target: admin self-configures <30min from docs; validated w/ contoso}
 nonGoals:
-  - SAML support (slated for next quarter)
-  - Social login (Google/GitHub) — not requested by enterprise pipeline
-  - MFA redesign (current TOTP flow remains)
-invariants:
-  - Sessions must not exceed 8h without re-auth
-  - No PII in JWT claims
-  - Existing email/password path unchanged for free-tier tenants
+  - {item: SAML, why: next quarter; bigger surface + XML-sig risk; no blocked deal needs it}
+  - {item: social-login, why: not in enterprise pipeline}
+  - {item: MFA-redesign, why: TOTP stays; okta users get IdP MFA}
+  - {item: SCIM, why: JIT creation suffices v1}
+  - {item: idp-config-UI, why: docs+support v1; self-serve w/ generic OIDC}
+personas: [end-user (SSO click → org okta → product; never pwd form), it-admin (std auth-code flow; documented redirect + discovery; clear errors), security-reviewer (session ceiling; claims; revocation; audit), support-eng (our-bug vs IdP-misconfig <5min from logs)]
 epics:
   - id: E1
     title: Okta OIDC integration
-    stories: [S1.1, S1.2, S1.3]
+    why: gates 3 deals; raw tokens never reach browser
+    stories:
+      - {id: S1.1, do: POST /auth/okta/callback exchanges code backend-side; persist session; httpOnly cookie w/ opaque id not raw JWT; bad code → 401}
+      - {id: S1.2, do: tenant→IdP map on email; SSO tenants → okta authz w/ state (CSRF-checked); others → pwd flow}
+      - {id: S1.3, do: JIT link on verified email claim; link existing account (keep history/perms) or create; never duplicate}
   - id: E2
     title: Session refresh
-    stories: [S2.1, S2.2]
+    why: 8h cap invisible; no mid-day re-prompt
+    stories:
+      - {id: S2.1, do: refresh backend-only; cron renews pre-expiry w/ exp backoff; client never sees refresh token}
+      - {id: S2.2, do: sliding renewal; absolute expiry 8h → re-auth; logout kills session + cookie; no zombie tokens}
+invariants: [sessions ≤ 8h without re-auth, no PII in JWT (opaque ids), email/pwd unchanged for free-tier]
 acceptance:
-  - id: ac1
-    criterion: Okta sign-in works end-to-end for the test tenant
-  - id: ac2
-    criterion: Refresh is transparent to the user — no re-prompt within 8h
-  - id: ac3
-    criterion: Logout revokes the session everywhere (no zombie tokens)
+  - {id: ac1, criterion: okta signin e2e vs contoso sandbox}
+  - {id: ac2, criterion: no re-prompt within 8h; active or idle}
+  - {id: ac3, criterion: logout revokes everywhere ≤5s; no replay}
+  - {id: ac4, criterion: free-tier e2e login suite passes unmodified}
 risks:
-  - id: r1
-    risk: Token rotation race
-    mitigation: mitigation is a refresh cron with exponential backoff
-  - id: r2
-    risk: Okta downtime
-    mitigation: mitigation is a 1h grace cache for valid sessions
-nfrs:
-  - "p95 latency under 200ms for /auth/* endpoints"
-  - Audit log every signin and signout event
-  - 99.9% availability for the OIDC broker
+  - {id: r1, risk: token-rotation race, severity: med, mitigation: single refresh cron + exp backoff}
+  - {id: r2, risk: okta downtime, severity: low, mitigation: 1h grace cache for valid sessions}
+  - {id: r3, risk: JIT links wrong account, severity: med, mitigation: verified claims only; audit links; unlink runbook}
+  - {id: r4, risk: contoso sandbox slip, severity: low, mitigation: own okta dev org fallback}
+nfrs: [p95 < 200ms for /auth/*, audit every signin/signout w/ 400d retention, 99.9% availability oidc-broker, secrets in secrets manager]
+rollout:
+  - {p: 0, what: internal dogfood, wk: 1}
+  - {p: 1, what: contoso sandbox → prod behind tenant flag; measure G5, wk: 2-3}
+  - {p: 2, what: northwind + fabrikam assisted onboarding, wk: 3-5}
+  - {p: 3, what: GA flag-on enterprise + docs + enablement, wk: 6}
+rollback: disable tenant flag → pwd auth; no data loss
+openQuestions:
+  - {id: q1, q: SSO replaces pwd or coexists — confirm w/ 3 accounts pre-phase-2}
+  - {id: q2, q: 8h fixed or tenant-config 4-8h — fabrikam hints 4h privileged}
+  - {id: q3, q: beta escalation — support read access to broker logs y/n}
+stakeholders: [pm-identity (owner), platform-lead + 2BE + 1FE, design (login review), sales-eng (docs + accounts), security (pre-phase-1), support (runbook pre-phase-2)]

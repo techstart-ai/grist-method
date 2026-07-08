@@ -17,6 +17,7 @@
 #   --claude-code   Force Claude Code variant
 #   --cursor        Force Cursor variant
 #   --antigravity   Force Antigravity variant
+#   --codex         Force Codex variant (AGENTS.md rules only)
 #   --bmad-npm      Force BMAD npm/framework variant
 #   --dry-run       Show what would be done without modifying files
 #   --uninstall     Remove GRIST overlays
@@ -49,6 +50,7 @@ usage() {
   echo "  --claude-code   Force Claude Code variant"
   echo "  --cursor        Force Cursor variant"
   echo "  --antigravity   Force Antigravity variant"
+  echo "  --codex         Force Codex variant (AGENTS.md rules only)"
   echo "  --bmad-npm      Force BMAD npm/framework variant"
   echo "  --dry-run       Show what would be done without modifying files"
   echo "  --uninstall     Remove GRIST overlays"
@@ -71,6 +73,7 @@ for arg in "$@"; do
     --claude-code)  FORCE_MODE="claude-code" ; FORWARD_FLAGS+=("--claude-code") ;;
     --cursor)       FORCE_MODE="cursor"      ; FORWARD_FLAGS+=("--cursor") ;;
     --antigravity)  FORCE_MODE="antigravity" ; FORWARD_FLAGS+=("--antigravity") ;;
+    --codex)        FORCE_MODE="codex" ;;
     --bmad-npm)     FORCE_MODE="bmad-npm"    ; FORWARD_FLAGS+=("--bmad-npm") ;;
     --dry-run)      IS_DRY_RUN=true          ; FORWARD_FLAGS+=("--dry-run") ;;
     --uninstall)    IS_UNINSTALL=true        ; FORWARD_FLAGS+=("--uninstall") ;;
@@ -186,6 +189,11 @@ if ! $RAN_SOMETHING; then
       COMMANDS_DST=""
       RULES_FILE="$PROJECT_ROOT/AGENTS.md"
       ;;
+    codex)
+      SKILL_DST=""
+      COMMANDS_DST=""
+      RULES_FILE="$PROJECT_ROOT/AGENTS.md"
+      ;;
     claude-code|bmad-npm|*)
       SKILL_DST="$PROJECT_ROOT/.claude/skills/grist"
       COMMANDS_DST="$PROJECT_ROOT/.claude/commands"
@@ -193,9 +201,11 @@ if ! $RAN_SOMETHING; then
       ;;
   esac
 
-  # Grist skill
+  # Grist skill (skipped for codex — no project skill convention)
   SKILL_SRC="$GRIST_ROOT/skills/grist/SKILL.md"
-  if $IS_UNINSTALL; then
+  if [[ -z "$SKILL_DST" ]]; then
+    :
+  elif $IS_UNINSTALL; then
     if $IS_DRY_RUN; then
       log_info "[dry-run] Would remove $(basename "$(dirname "$SKILL_DST")")/grist/"
     else
@@ -228,6 +238,136 @@ if ! $RAN_SOMETHING; then
         mkdir -p "$COMMANDS_DST"
         [[ -f "$GRIST_ROOT/commands/grist.md" ]] && cp "$GRIST_ROOT/commands/grist.md" "$COMMANDS_DST/grist.md" && log_ok ".claude/commands/grist.md"
         [[ -f "$GRIST_ROOT/commands/grist.toml" ]] && cp "$GRIST_ROOT/commands/grist.toml" "$COMMANDS_DST/grist.toml" && log_ok ".claude/commands/grist.toml"
+      fi
+    fi
+  fi
+
+  # Enforcement hooks (Claude Code only — Cursor/Antigravity have no hook system)
+  if [[ -n "$COMMANDS_DST" ]]; then
+    HOOKS_SRC="$GRIST_ROOT/hooks"
+    HOOKS_DST="$PROJECT_ROOT/.grist/hooks"
+    SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.json"
+
+    if $IS_UNINSTALL; then
+      if $IS_DRY_RUN; then
+        log_info "[dry-run] Would remove .grist/hooks/"
+        log_info "[dry-run] Would strip GRIST hook entries from .claude/settings.json"
+      else
+        rm -rf "$HOOKS_DST"
+        log_ok "Removed .grist/hooks/"
+        if [[ -f "$SETTINGS_FILE" ]]; then
+          if python3 - "$SETTINGS_FILE" <<'PY'
+import json, os, sys
+
+path = sys.argv[1]
+try:
+    with open(path) as f:
+        content = f.read().strip()
+    settings = json.loads(content) if content else {}
+except (OSError, ValueError):
+    sys.exit(1)
+
+hooks = settings.get("hooks")
+if isinstance(hooks, dict):
+    for event in list(hooks.keys()):
+        entries = hooks[event]
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if isinstance(entry, dict) and isinstance(entry.get("hooks"), list):
+                entry["hooks"] = [
+                    h for h in entry["hooks"]
+                    if ".grist/hooks/" not in str(h.get("command", ""))
+                ]
+        entries = [
+            e for e in entries
+            if not (isinstance(e, dict) and e.get("hooks") == [])
+        ]
+        if entries:
+            hooks[event] = entries
+        else:
+            del hooks[event]
+    if not hooks:
+        del settings["hooks"]
+
+with open(path, "w") as f:
+    json.dump(settings, f, indent=2)
+    f.write("\n")
+PY
+          then
+            log_ok "Stripped GRIST hook entries from .claude/settings.json"
+          else
+            log_warn "Could not update .claude/settings.json (malformed JSON?) — remove GRIST hook entries manually"
+          fi
+        fi
+      fi
+    else
+      if $IS_DRY_RUN; then
+        log_info "[dry-run] Would install hooks to .grist/hooks/"
+        log_info "[dry-run] Would register GRIST hooks in .claude/settings.json"
+      else
+        mkdir -p "$HOOKS_DST"
+        cp "$HOOKS_SRC/read-discipline.py" "$HOOKS_DST/read-discipline.py"
+        cp "$HOOKS_SRC/validate-grist-yaml.py" "$HOOKS_DST/validate-grist-yaml.py"
+        chmod +x "$HOOKS_DST/read-discipline.py" "$HOOKS_DST/validate-grist-yaml.py"
+        log_ok ".grist/hooks/read-discipline.py"
+        log_ok ".grist/hooks/validate-grist-yaml.py"
+
+        mkdir -p "$PROJECT_ROOT/.claude"
+        if python3 - "$SETTINGS_FILE" <<'PY'
+import json, os, sys
+
+path = sys.argv[1]
+settings = {}
+try:
+    if os.path.isfile(path):
+        with open(path) as f:
+            content = f.read().strip()
+        if content:
+            settings = json.loads(content)
+except (OSError, ValueError):
+    sys.exit(1)
+if not isinstance(settings, dict):
+    sys.exit(1)
+
+hooks = settings.setdefault("hooks", {})
+
+
+def register(event, matcher, command):
+    entries = hooks.setdefault(event, [])
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("matcher") == matcher:
+            cmds = entry.setdefault("hooks", [])
+            if not any(
+                isinstance(h, dict) and h.get("command") == command
+                for h in cmds
+            ):
+                cmds.append({"type": "command", "command": command})
+            return
+    entries.append({
+        "matcher": matcher,
+        "hooks": [{"type": "command", "command": command}],
+    })
+
+
+register(
+    "PreToolUse", "Read",
+    'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/read-discipline.py"',
+)
+register(
+    "PostToolUse", "Write|Edit",
+    'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/validate-grist-yaml.py"',
+)
+
+with open(path, "w") as f:
+    json.dump(settings, f, indent=2)
+    f.write("\n")
+PY
+        then
+          log_ok "Registered GRIST hooks in .claude/settings.json"
+        else
+          log_warn "Could not update .claude/settings.json (malformed JSON?) — register GRIST hooks manually"
+        fi
       fi
     fi
   fi

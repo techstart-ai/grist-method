@@ -6,6 +6,7 @@
       <action>Append one-liner per completed task to YAML `notes:` field</action>
       <action>Append newly created/modified file paths to YAML `files:` list (op: modify)</action>
       <note>Do not rewrite the prose story file for state tracking — YAML is the state store.</note>
+      <note>Tight style for all YAML writes: no comments; flow lists [a, b, c] for scalars; never add empty/null optional keys; one-line scalars ≤200 chars.</note>
     </check>
 
 <!-- GRIST:END:COMPLETE -->

@@ -2,132 +2,96 @@
 name: grist
 description: >
   Token-efficient mode for BMAD-method, OpenSpec workflows, and general chat. Four phase-bound modes:
-  /grist chat (general token-saving chat), /grist design (BMAD planning), /grist iterate (OpenSpec changes), /grist ship (coding).
+  /grist chat (cheap-context Q&A), /grist design (BMAD planning), /grist iterate (OpenSpec changes), /grist ship (coding).
   Auto-triggers on /grist, "grist mode", "ship mode", BMAD phase transitions, OpenSpec proposal commands.
 ---
 
-Compress chat. Compress artifacts to YAML. Suppress coding-phase narration. Code itself never compressed.
+Compress context, not just chat. Compress artifacts to YAML. Suppress coding-phase narration. Code itself never compressed.
 
 ## Persistence
 
 Active every response after activation. No drift across turns. Off only on "stop grist" / "normal mode" / `/grist off`.
 
-Default mode if just `/grist`: **ship** (most-used phase). Switch: `/grist chat|design|iterate|ship`.
-
-## Modes
-
-### /grist chat — Normal chat and Q&A
-
-Use for general codebase Q&A, brainstorming, or debugging outside formal BMAD/OpenSpec flows. Token saving matches the "caveman" style.
-
-**Chat:** ultra.
-
-**Artifacts:** None. No YAML forms are emitted.
-
-**Rules:**
-- Strictly adhere to chat compression: drop articles, filler, pleasantries, hedging.
-- Use abbreviations and fragments. Code and technical terms unchanged.
-- No artifact generation logic applies.
-
-### /grist design — BMAD Analysis / Planning / Solutioning
-
-Use when running BMAD `bmad-create-prd`, `bmad-create-architecture`, `bmad-create-epics-and-stories`, brainstorming, market/domain/technical research.
-
-**Chat:** lite — drop filler/hedging, keep full sentences for stakeholder readability.
-
-**Artifacts:** emit `.grist.yaml` form per `schemas/`. PRD → `prd.grist.yaml`, Architecture → `architecture.grist.yaml`, Story → `story.grist.yaml`. Reasoning preserved in `why:` and `alts:` fields, not prose paragraphs.
-
-**Rules:**
-- No narration before/after artifact writes ("I'll now create the PRD…" — banned).
-- Reference upstream artifacts by ID (`brief#problem`, `prd#E1`), never paraphrase or re-paste.
-- One YAML doc per artifact. No mixing.
-- Optional prose version: only when stakeholder asks. Default is YAML.
-
-### /grist iterate — OpenSpec change proposals
-
-Use when running OpenSpec `/openspec:proposal`, modifying existing specs, applying spec deltas.
-
-**Chat:** ultra.
-
-**Artifact:** single `change.grist.yaml` replaces the four-file (`proposal.md` + `design.md` + `tasks.md` + `specs/`) layout.
-
-**Rules:**
-- Refuse to re-paste existing `openspec/specs/<feature>/spec.md`. Reference by `spec#<feature>#<req-id>`.
-- Spec deltas are the contract. Use `add:` / `modify:` / `remove:` keys.
-- Design rationale lives in `design.approach` + `design.alts`, not prose paragraphs.
-- Tasks: one line each, `<id>: <action>`.
-
-### /grist ship — Implementation phase
-
-Use when running BMAD `bmad-dev-story`, `bmad-code-review`, OpenSpec coding tasks, any direct file edits in service of a known story/spec.
-
-**Chat:** ultra. Code/comments/tests/commits: zero compression, normal style.
-
-**Banned in ship mode:**
-- Preambles: "Let me…", "I'll now…", "First I'll…", "Sure, I can…"
-- End-of-turn summaries: "I've updated X to do Y, and added a test for Z." Diff shows it.
-- Task restatement: don't paraphrase the story before doing it.
-- Apologies / pleasantries.
-
-**Read discipline:**
-- Never read full file >300 lines without line range.
-- Quote ≤5 lines from any doc you just loaded; reference rest by `path:line`.
-- Sub-agent searches return only `path:line — symbol — note` lines.
-- Tool output >500 tokens → summarize before quoting back.
+Default mode if just `/grist`: **ship**. Switch: `/grist chat|design|iterate|ship`.
 
 ## Always-on rules (every mode)
 
-**Auto-clarity** — drop to normal prose when:
-- Security warnings or risk callouts
-- Irreversible action confirmations (deletes, force-pushes, destructive migrations)
-- Multi-step sequences where fragment ambiguity could mislead
-- User confused or asks same question twice
+**Read discipline** (enforced by hooks when installed; obey regardless):
+- Never read a whole file >300 lines without a line range. Grep/search for the symbol first.
+- Quote ≤5 lines from anything you loaded; reference the rest by `path:line`.
+- Sub-agent searches return only `path:line — symbol — note` lines, never raw file dumps.
+- Tool output >500 tokens: summarize before quoting back into chat.
+- Never re-paste code the user can open. Cite `path:line` instead.
 
-Resume mode after.
+**Address by ID, resolve by slice:**
+- `prd#E1.S1.1` not "the first story under epic 1"; `arch#C2` not "the session store component".
+- Resolve refs with `gristats/grist-get.py '<ref>' --dir <artifacts-dir>` (also `--list <type>` to discover ids). Never re-read a whole artifact file to answer one slice.
 
-**Cache hygiene:**
-- Load `.grist/context-pack.md` once per session if present. Don't re-quote it.
-- Stable content (PRD invariants, arch decisions, glossary) goes in pack — gets cached.
-- Volatile content (current sprint status) stays out of pack.
+**Tight emission style** (all YAML artifacts): no comments; flow lists `[a, b, c]` for scalars; omit ALL empty/null optional keys (never `stakeholders: []` or `pm: null`); one-line scalars ≤200 chars; compact ids (`E1`, `S1.1`, `d1`, `r1`). Read the lean schema contract in `schemas/` on first emission; open `schemas/examples/` only if unsure of shape.
 
-**Address by ID:**
-- `prd#E1.S1.1` not "the first story under epic 1"
-- `arch#C2` not "the session store component"
-- `spec#auth-login#req-12` not "the login spec, requirement about MFA"
+**Context placement:** stable project facts (invariants, load-bearing decisions, glossary, conventions) belong in CLAUDE.md `## Project facts` — loaded once into the cached prefix, never Read again. Volatile state (sprint, in-progress story) lives in `.grist/volatile.md`, read only when phase-relevant. Don't re-quote either back to the user.
+
+**Auto-clarity** — drop terse style, use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user confused or repeats a question. Resume mode after.
+
+## Modes
+
+### /grist chat — Q&A, debugging, exploration (no framework needed)
+
+The default for general codebase questions. Chat compression is the smallest win here — the rules that matter are input-side:
+
+- All always-on rules above, especially read discipline and never-re-paste-code.
+- Delegate broad searches to a sub-agent; accept only `path:line — symbol — note` back.
+- **Session facts:** when you discover a durable fact about the codebase ("payments flow starts at `create-session.ts:40`"), append one line to `.grist/facts.yaml` (`<slug>: <path:line> — <fact>`). Load that file at session start if present — it replaces re-exploration.
+- **Coexistence:** if another terse-output rule set (e.g. caveman) is already active, defer output style to it entirely; apply only the input-side rules. Never stack two compression styles.
+- Chat: ultra (per Compression rules below) when no other style owns output.
+- No YAML artifacts emitted.
+
+### /grist design — BMAD Analysis / Planning / Solutioning
+
+For `bmad-create-prd`, `bmad-create-architecture`, `bmad-create-epics-and-stories`, research.
+
+- Chat: lite — drop filler/hedging, keep full sentences for stakeholder readability.
+- Emit `.grist.yaml` per `schemas/` contracts, tight style. PRD → `prd.grist.yaml`, Architecture → `architecture.grist.yaml`, Story → `story-<id>.grist.yaml`. Reasoning goes in `why:`/`alts:` fields, not prose.
+- No narration before/after artifact writes. Reference upstream by ID (`brief#problem`, `prd#E1`), never re-paste.
+- Prose rendering only when a stakeholder asks. Default is YAML.
+
+### /grist iterate — OpenSpec change proposals
+
+For `/openspec:proposal`, spec deltas.
+
+- Chat: ultra.
+- Single `change.grist.yaml` replaces the four-file (proposal/design/tasks/specs) layout.
+- Never re-paste `openspec/specs/<feature>/spec.md`; reference `spec#<feature>#<req-id>` and resolve via grist-get.
+- Deltas are the contract: `add:` / `modify:` / `remove:`. Rationale in `design.approach` + `design.alts`. Tasks one line each: `<id>: <action>`.
+
+### /grist ship — Implementation
+
+For `bmad-dev-story`, `bmad-code-review`, OpenSpec tasks, any edits serving a known story/spec.
+
+- Chat: ultra. Code/comments/tests/commits: zero compression, normal style.
+- Banned: preambles ("Let me…", "I'll now…"); end-of-turn summaries (diff shows it); task restatement; apologies/pleasantries.
+- Allowed: one-line state-change notes ("root cause auth.ts:42", "tests pass"); direct questions when blocked.
+- Load the story via `grist-get 'story#<id>'`, not by opening planning dirs.
 
 ## Compression rules (chat)
 
 Drop: articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries, hedging.
 Fragments OK. Short synonyms. Technical terms exact. Errors quoted exact. Code unchanged.
+Do NOT invent abbreviations (cfg/impl/req/fn) — tokenizers split them same as the full word; zero saved, clarity lost. Standard acronyms (DB/API/HTTP) fine.
 
 Pattern: `[thing] [action] [reason]. [next step].`
 
-Ultra adds: abbreviate prose words (DB/auth/config/req/res/fn/impl), arrows for causality (X → Y), one word when enough. Code symbols + API names + error strings never abbreviated.
+## Example
 
-## Examples
+Bad (default): "Sure! Let me read the file first to understand the implementation… [reads whole file] …I've successfully updated the file. The changes I made are: 1)… Let me know if you need anything else!"
 
-**Bad (default Claude in coding):**
-> Sure! Let me help you with that. I'll first read the file to understand the current implementation, then I'll make the changes you requested. After that, I'll verify the changes work correctly. Let me start by reading the file.
-> [reads file]
-> Now I have a good understanding of the code. I'll now make the modifications…
-> [edits]
-> I've successfully updated the file. The changes I made are: 1) renamed the variable, 2) added error handling, 3) updated the test. Let me know if you need any other changes!
-
-**Good (`/grist ship`):**
-> [reads file with line range]
-> [edits]
-> Done. Test passes.
-
-**design — PRD output:**
-
-Bad: 3-page markdown PRD with sections "Problem Statement" / "Goals" / "Non-Goals" / "User Stories" / etc.
-
-Good: `prd.grist.yaml` per schema. ~15% the tokens. Same information. Addressable by ID.
+Good (`/grist ship`): [greps symbol] [reads 30-line range] [edits] "Done. Test passes."
 
 ## File map
 
 - Modes + rules: this file
-- Schemas: `schemas/{prd,architecture,story,change}.grist.yaml`
-- Always-on activation rule: `rules/grist-activate.md`
-- Cache template: `templates/context-pack.md`
-- Converters: `converters/bmad-prd-to-grist.py`
+- Schema contracts: `schemas/*.grist.yaml`; filled examples: `schemas/examples/`
+- Slice resolver: `gristats/grist-get.py`
+- Enforcement hooks: `hooks/read-discipline.py`, `hooks/validate-grist-yaml.py`
+- Converters: `converters/bmad-{prd,architecture,story}-to-grist.py`
+- Measurement: `gristats/gristats.py` (`project`, `sessions`, `rereads`, `summary`)

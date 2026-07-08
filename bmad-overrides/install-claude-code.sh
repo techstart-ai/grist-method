@@ -172,6 +172,20 @@ for f in prd architecture story change review; do
   fi
 done
 
+# Schema examples — always overwrite (read only when unsure of shape)
+for f in prd architecture story change review; do
+  src="$GRIST_ROOT/schemas/examples/$f.example.grist.yaml"
+  if [[ -f "$src" ]]; then
+    if $DRY_RUN; then
+      log_info "[dry-run] Would copy examples/$f.example.grist.yaml"
+    else
+      mkdir -p "$CUSTOM_DIR/grist-schemas/examples"
+      cp "$src" "$CUSTOM_DIR/grist-schemas/examples/$f.example.grist.yaml"
+      log_ok "_bmad/custom/grist-schemas/examples/$f.example.grist.yaml"
+    fi
+  fi
+done
+
 # Scripts — always overwrite
 for f in post-prd-to-grist.py post-arch-to-grist.py post-story-to-grist.py post-dev-story.py post-code-review.py bmad-prd-to-grist.py; do
   src="$SCRIPT_DIR/_bmad/custom/grist-scripts/$f"

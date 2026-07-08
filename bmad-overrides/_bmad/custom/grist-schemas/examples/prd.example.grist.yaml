@@ -1,0 +1,39 @@
+# Filled example for prd.grist.yaml (tight style)
+prd: auth-v2
+phase: planning
+inputs: [brief.md, market-research.md]
+problem: enterprise customers blocked on SSO; 3 deals in pipeline gated
+goal: OIDC-based SSO with Okta first, generic IdP later
+nonGoals: [SAML, social-login, MFA-redesign]
+invariants:
+  - sessions ≤ 8h
+  - no PII in JWT
+  - existing email/pwd path unchanged
+epics:
+  - id: E1
+    title: Okta OIDC integration
+    why: gates 3 enterprise deals
+    stories: [S1.1, S1.2, S1.3]
+  - id: E2
+    title: Session refresh
+    why: avoid re-prompting 8h+ users
+    stories: [S2.1, S2.2]
+acceptance:
+  - id: ac1
+    criterion: okta signin works for test tenant
+  - id: ac2
+    criterion: refresh transparent to user, no re-prompt
+  - id: ac3
+    criterion: logout revokes everywhere
+risks:
+  - id: r1
+    risk: token-rotation race
+    mitigation: refresh cron + backoff
+    severity: med
+  - id: r2
+    risk: okta downtime
+    mitigation: cached session 1h grace
+    severity: low
+nfrs:
+  - p95 < 200ms for /auth/*
+  - audit log every signin/signout

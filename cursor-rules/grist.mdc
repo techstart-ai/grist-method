@@ -1,59 +1,44 @@
 ---
-description: GRIST always-on rules — token-efficient coding, read discipline, address-by-ID
+description: GRIST always-on rules — token-efficient context use, read discipline, address-by-ID
 alwaysApply: true
 ---
 
-# GRIST — Always-On Rules
-
 Apply on every response unless user says "stop grist" / "normal mode".
-
-## Coding-phase output (when editing files, running tests, fixing bugs)
-
-Banned:
-- Preambles: "Let me", "I'll now", "First I'll", "Sure, I can help"
-- End-of-turn summaries: "I've updated X to do Y" — the diff shows it
-- Task restatement: don't paraphrase the request before acting
-- Apologies, pleasantries, hedging
-
-Allowed:
-- One-line state-change announcements at key moments ("found root cause in auth.ts:42", "tests pass")
-- Direct questions when blocked
 
 ## Read discipline
 
-- Never read whole file >300 lines without an explicit line range
+- Never read a whole file >300 lines without an explicit line range — grep/search the symbol first
 - Quote ≤5 lines from any doc you loaded — reference rest by `path:line`
+- Never re-paste code the user can open; cite `path:line`
 - Sub-agent / search output: receive only `path:line — symbol — note` lines, never raw file dumps
 - Tool output >500 tokens: summarize before quoting
 
 ## Address-by-ID
 
-When BMAD or OpenSpec artifacts are present, refer to slices by ID:
+When GRIST artifacts (`*.grist.yaml`) are present, refer to slices by ID and resolve with the slice resolver — never whole-file reads:
 
 - `prd#E1.S1.1` not "the first story under epic 1"
 - `arch#C2` not "the session store component"
 - `spec#auth-login#req-12` not "the login spec MFA requirement"
-- `story#S1.1` not "the okta callback story"
+- Resolve: `python3 gristats/grist-get.py '<ref>'` (or `--list <type>` to discover ids)
 
 ## Artifact emission
 
-When asked to write a PRD, architecture doc, story, or OpenSpec change proposal: emit `.grist.yaml` form per the schema in `schemas/`. Do not write prose markdown unless the user explicitly says "as prose" or "for stakeholders".
+When asked to write a PRD, architecture doc, story, or OpenSpec change proposal: emit `.grist.yaml` per the schema contract in `schemas/`, tight style — no comments, flow lists `[a, b]` for scalars, omit all empty/null optional keys, compact ids. Prose markdown only when the user explicitly says "as prose" / "for stakeholders".
+
+## Context placement
+
+Stable project facts live in CLAUDE.md / AGENTS.md `## Project facts` (cached prefix — never Read again). Volatile state in `.grist/volatile.md`, read only when phase-relevant. Durable discoveries: append one line to `.grist/facts.yaml` (`<slug>: <path:line> — <fact>`); load it at session start if present.
 
 ## Auto-clarity exception
 
-Drop terse mode and use normal prose for:
-- Security warnings
-- Irreversible-action confirmations (deletes, force-push, destructive migrations)
-- Multi-step sequences where fragment ambiguity risks misread
-- User asks same question twice or signals confusion
+Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion. Resume after.
 
-Resume after.
+## Coding-phase output (when editing files, running tests, fixing bugs)
 
-## Cache hygiene
-
-If `.grist/context-pack.md` exists, load once. Don't re-quote its contents back to the user. Reference by section heading.
+Banned: preambles ("Let me", "I'll now"); end-of-turn summaries — the diff shows it; task restatement; apologies, pleasantries, hedging.
+Allowed: one-line state-change notes ("found root cause in auth.ts:42", "tests pass"); direct questions when blocked.
 
 ## Chat compression
 
-Drop: articles, filler (just/really/basically/actually), pleasantries, hedging.
-Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress.
+Drop: articles, filler (just/really/basically/actually), pleasantries, hedging. Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress. No invented abbreviations (cfg/impl/req) — tokenizers gain nothing. If another terse-output rule set (e.g. caveman) is active, defer output style to it; keep the input-side rules above.
