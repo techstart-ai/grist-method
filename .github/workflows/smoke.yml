@@ -30,6 +30,9 @@ jobs:
     - name: Run Compression Ratio Check
       run: ./test/smoke-test-ratio.sh
 
+    - name: Run Auto-Activation Hook Smoke Test
+      run: ./test/smoke-test-autoactivate.sh
+
     - name: Run Converter Unit Tests
       run: python3 -m unittest discover converters -v
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """GRIST read-discipline hook (Claude Code PreToolUse, matcher: Read).
 
-Deterministically enforces the GRIST read discipline: never read whole
-files longer than 300 lines. If the Read tool is invoked without an
-offset/limit on a file exceeding the threshold, the call is denied with
-guidance to re-read a targeted range or grep for the symbol first.
+Deterministically enforces the GRIST read discipline:
+  1. Never read whole files longer than 300 lines. Denied with guidance
+     to re-read a targeted range or grep for the symbol first.
+  2. Never read a prose .md artifact whole when a .grist.yaml sibling
+     exists — denied with a redirect to the sibling / slice resolver.
+     An explicit offset/limit range escapes (deliberate prose read).
 
 Contract (Claude Code hooks):
   stdin  — JSON object with at least: tool_name, tool_input
@@ -59,6 +61,27 @@ def is_exempt(file_path):
     return False
 
 
+def grist_sibling(file_path):
+    """Return the .grist.yaml sibling for a prose .md artifact, or None."""
+    if not file_path.endswith(".md"):
+        return None
+    stem = os.path.basename(file_path)[:-3]
+    dirname = os.path.dirname(file_path) or "."
+    for candidate in (stem + ".grist.yaml", stem.lower() + ".grist.yaml"):
+        sibling = os.path.join(dirname, candidate)
+        if os.path.isfile(sibling):
+            return sibling
+    try:
+        entries = os.listdir(dirname)
+    except OSError:
+        return None
+    target = stem.lower() + ".grist.yaml"
+    for entry in entries:
+        if entry.lower() == target:
+            return os.path.join(dirname, entry)
+    return None
+
+
 def count_lines(file_path):
     """Return line count, or None if missing/unreadable/binary."""
     try:
@@ -80,12 +103,11 @@ def count_lines(file_path):
 
 
 def main():
-    if os.environ.get("GRIST_NO_HOOKS") == "1":
-        allow()
-
     try:
-        payload = json.load(sys.stdin)
+        payload = json.load(sys.stdin)  # always drain stdin first (avoid SIGPIPE)
     except (json.JSONDecodeError, ValueError):
+        payload = None
+    if os.environ.get("GRIST_NO_HOOKS") == "1" or payload is None:
         allow()
 
     if not isinstance(payload, dict) or payload.get("tool_name") != "Read":
@@ -105,6 +127,16 @@ def main():
 
     if is_exempt(file_path):
         allow()
+
+    sibling = grist_sibling(file_path)
+    if sibling:
+        deny(
+            "GRIST: %s has a GRIST sibling — read %s instead (denser, same facts), "
+            "or resolve one slice: python3 grist-get.py '<type>#<id>' --dir %s. "
+            "To read the prose anyway, pass an explicit offset/limit range "
+            "(or set GRIST_NO_HOOKS=1)."
+            % (file_path, sibling, os.path.dirname(sibling) or ".")
+        )
 
     n_lines = count_lines(file_path)
     if n_lines is None or n_lines <= MAX_LINES:

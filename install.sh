@@ -307,11 +307,17 @@ PY
         log_info "[dry-run] Would register GRIST hooks in .claude/settings.json"
       else
         mkdir -p "$HOOKS_DST"
-        cp "$HOOKS_SRC/read-discipline.py" "$HOOKS_DST/read-discipline.py"
-        cp "$HOOKS_SRC/validate-grist-yaml.py" "$HOOKS_DST/validate-grist-yaml.py"
-        chmod +x "$HOOKS_DST/read-discipline.py" "$HOOKS_DST/validate-grist-yaml.py"
-        log_ok ".grist/hooks/read-discipline.py"
-        log_ok ".grist/hooks/validate-grist-yaml.py"
+        for hook in read-discipline.py validate-grist-yaml.py session-router.py activity-sniff.py recall.py; do
+          cp "$HOOKS_SRC/$hook" "$HOOKS_DST/$hook"
+          chmod +x "$HOOKS_DST/$hook"
+          log_ok ".grist/hooks/$hook"
+        done
+        # recall.py resolves slices via grist-get; ship it alongside the hooks.
+        if [[ -f "$GRIST_ROOT/gristats/grist-get.py" ]]; then
+          cp "$GRIST_ROOT/gristats/grist-get.py" "$HOOKS_DST/grist-get.py"
+          chmod +x "$HOOKS_DST/grist-get.py"
+          log_ok ".grist/hooks/grist-get.py"
+        fi
 
         mkdir -p "$PROJECT_ROOT/.claude"
         if python3 - "$SETTINGS_FILE" <<'PY'
@@ -351,12 +357,24 @@ def register(event, matcher, command):
 
 
 register(
+    "UserPromptSubmit", "",
+    'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/session-router.py"',
+)
+register(
     "PreToolUse", "Read",
     'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/read-discipline.py"',
 )
 register(
+    "PreToolUse", "Read|Write|Edit",
+    'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/activity-sniff.py"',
+)
+register(
     "PostToolUse", "Write|Edit",
     'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/validate-grist-yaml.py"',
+)
+register(
+    "PostToolUse", "Read",
+    'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/recall.py"',
 )
 
 with open(path, "w") as f:
