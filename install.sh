@@ -27,7 +27,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GRIST_INSTALLER_VERSION="1.2.0"
+GRIST_INSTALLER_VERSION="1.3.0"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
