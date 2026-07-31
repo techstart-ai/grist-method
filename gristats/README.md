@@ -151,6 +151,36 @@ Caveats specific to `rereads`:
 - **Only the `Read` tool is counted.** File content pulled in via `grep`, `cat`, `head`, `@`-mentions, or system-reminder injections is invisible here, so counts are a floor, not a ceiling.
 - **Partial reads count as full reads.** `Read` calls with offset/limit are tokenized as the whole file.
 
+### `gristats recall [--dir <path>]`
+
+Audits the auto-recall log (`.grist/recall.log`, written by `hooks/recall.py` whenever a `*.grist.yaml` artifact open triggers 1-hop slice injection).
+
+```
+$ gristats recall
+
+GRIST recall audit (.grist/recall.log)
+  injections: 34 (28 resolved, 6 unresolved)
+  est injected: 3.2k tok
+
+per phase:
+  ship          20 injections    2.1k tok
+  design         8 injections    1.1k tok
+
+top refs:
+  prd#E1                                     6×
+  arch#C2                                    4×
+
+unresolved refs (broken links — fix or drop the declaration):
+  arch#C9                                    3×
+
+precision (heuristic — ref id appears in later assistant output):
+  22/28 injected refs referenced later — 79%
+  never referenced: arch#C4 (3×)  <- recall pruning candidates
+```
+
+- **unresolved refs** are declarations pointing at ids that no longer resolve — fix the ref or drop it.
+- **precision** is a substring heuristic (full ref or trailing id segment in assistant text), a floor for real usage, not an exact measure.
+
 ### `gristats summary [--dir <path>] [--days N]`
 
 Combined dashboard — runs `project`, `sessions`, and `rereads` (top 5 files) together with one invocation.

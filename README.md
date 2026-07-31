@@ -139,6 +139,8 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 | Codex (`AGENTS.md`) | Shipped | `./install.sh --codex` |
 | Claude Code plugin (skill + command + hooks, no clone) | Shipped | `.claude-plugin/` |
 | Enforcement hooks (read discipline, YAML validation) | Shipped | `hooks/` |
+| Auto-activation (BMAD/OpenSpec detection → phase state) | Shipped | `hooks/session-router.py`, `hooks/activity-sniff.py` |
+| Auto-recall (1-hop slice injection on artifact open) | Shipped | `hooks/recall.py`, `gristats recall` |
 | `grist-get` slice resolver (`prd#E1` → 30-token node) | Shipped | `gristats/grist-get.py` |
 | `gristats` (phase breakdown, cache rate, re-read report) | Shipped | `gristats/` |
 | Hermes-agent (persistent memory adapter) | Planned | Roadmap |
@@ -197,7 +199,22 @@ Rules that bite every turn:
 - Sub-agent searches return only `path:line — symbol — note` lines.
 - Tool output >500 tokens is summarized before quoting back into chat.
 
-Prompt rules drift over long sessions, so GRIST also ships hooks: `hooks/read-discipline.py` (PreToolUse) denies whole-file reads >300 lines with guidance to use a range or grep first (`*.grist.yaml`, CLAUDE.md, AGENTS.md exempt; `GRIST_NO_HOOKS=1` to bypass), and `hooks/validate-grist-yaml.py` (PostToolUse) blocks malformed artifact writes before they poison downstream agents. Installed automatically by the plugin, or wired into `.claude/settings.json` by `install.sh`.
+Prompt rules drift over long sessions, so GRIST also ships hooks: `hooks/read-discipline.py` (PreToolUse) denies whole-file reads >300 lines with guidance to use a range or grep first, and denies reading a prose `.md` artifact whole when a `.grist.yaml` sibling exists — the deny message names the sibling and the slice-resolver command (`*.grist.yaml`, CLAUDE.md, AGENTS.md exempt; explicit line range or `GRIST_NO_HOOKS=1` to bypass). `hooks/validate-grist-yaml.py` (PostToolUse) blocks malformed artifact writes before they poison downstream agents. Installed automatically by the plugin, or wired into `.claude/settings.json` by `install.sh`.
+
+### Auto-activation — never forget to turn GRIST on
+
+You shouldn't have to remember `/grist` before every BMAD run. Two hooks arm the right phase automatically:
+
+- **`hooks/session-router.py`** (UserPromptSubmit) — watches every prompt. `/bmad*` planning commands arm **design**; `dev-story` / `code-review` arm **ship**; `/opsx*` / OpenSpec commands arm **iterate**; `/grist <mode>` overrides explicitly. The armed phase is persisted in `.grist/session-state.json` and a one-line reminder is re-injected on every subsequent prompt, so the mode survives the whole workflow instead of evaporating after one turn. `stop grist` / `/grist off` clears it.
+- **`hooks/activity-sniff.py`** (PreToolUse) — catches sessions the prompt regex misses (resumed mid-workflow): any Read/Write/Edit under `_bmad/`, `_bmad-output/`, or `openspec/` arms the matching phase. An existing phase is never overwritten.
+
+While a phase is armed, GRIST owns output style (no preambles, no end-of-turn summaries) and any other terse chat style (e.g. caveman) is deferred; when no phase is armed the router injects nothing and your default chat style owns the turn. Phase state also labels every turn for `gristats sessions` — shrinking the `unlabeled` bucket.
+
+### Auto-recall — cue-based memory, 1 hop
+
+Artifacts declare their dependencies as ID refs (`epic: prd#E1`, `arch: arch#C2`). `hooks/recall.py` (PostToolUse) treats an artifact open as a memory cue: when the agent reads any `*.grist.yaml`, the hook parses the refs it declares, resolves each one through `grist-get`, and injects the resolved slices (~30–100 tokens each) as context. One hop only — refs-of-refs are pulled manually if needed — max 8 refs per read, each ref injected once per session.
+
+Every injection is logged to `.grist/recall.log`. `gristats recall` audits it: injections per phase, unresolved refs (broken links), and a heuristic precision score — which injected slices were actually referenced in later output, and which are pruning candidates.
 
 ---
 

@@ -577,6 +577,126 @@ def cmd_rereads(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Layer 4: recall audit ---------------------------------------------------
+
+
+def _find_transcript(session_id: str) -> Path | None:
+    if not session_id or not CLAUDE_PROJECTS_DIR.is_dir():
+        return None
+    for proj in CLAUDE_PROJECTS_DIR.iterdir():
+        cand = proj / f"{session_id}.jsonl"
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _assistant_text(jsonl_path: Path) -> str:
+    """All assistant text blocks of a session, concatenated."""
+    chunks: list[str] = []
+    for turn in iter_session_turns(jsonl_path):
+        if turn.get("type") != "assistant":
+            continue
+        msg = turn.get("message")
+        if not isinstance(msg, dict):
+            continue
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for blk in content:
+            if isinstance(blk, dict) and blk.get("type") == "text":
+                t = blk.get("text")
+                if isinstance(t, str):
+                    chunks.append(t)
+    return "\n".join(chunks)
+
+
+def cmd_recall(args: argparse.Namespace) -> int:
+    log_path = Path(args.dir) / ".grist" / "recall.log"
+    if not log_path.is_file():
+        print(f"no recall log at {log_path}")
+        print("  (written by hooks/recall.py when a *.grist.yaml artifact is opened)")
+        return 0
+
+    entries: list[dict] = []
+    for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(e, dict) and e.get("ref"):
+            entries.append(e)
+
+    if not entries:
+        print(f"recall log empty: {log_path}")
+        return 0
+
+    resolved = [e for e in entries if e.get("resolved")]
+    failed = [e for e in entries if not e.get("resolved")]
+    total_chars = sum(int(e.get("chars", 0) or 0) for e in resolved)
+
+    print(f"GRIST recall audit ({log_path})")
+    print(f"  injections: {len(entries)} ({len(resolved)} resolved, {len(failed)} unresolved)")
+    print(f"  est injected: {fmt_tokens(total_chars // 4)} tok")
+
+    by_phase: dict[str, list[dict]] = defaultdict(list)
+    for e in resolved:
+        by_phase[e.get("phase") or "unlabeled"].append(e)
+    if by_phase:
+        print("\nper phase:")
+        for phase, es in sorted(by_phase.items(), key=lambda kv: -len(kv[1])):
+            chars = sum(int(e.get("chars", 0) or 0) for e in es)
+            print(f"  {phase:<12}{len(es):>4} injections  {fmt_tokens(chars // 4):>8} tok")
+
+    ref_counts: dict[str, int] = defaultdict(int)
+    for e in resolved:
+        ref_counts[e["ref"]] += 1
+    print("\ntop refs:")
+    for ref, n in sorted(ref_counts.items(), key=lambda kv: -kv[1])[:10]:
+        print(f"  {ref:<40}{n:>4}×")
+
+    if failed:
+        fail_counts: dict[str, int] = defaultdict(int)
+        for e in failed:
+            fail_counts[e["ref"]] += 1
+        print("\nunresolved refs (broken links — fix or drop the declaration):")
+        for ref, n in sorted(fail_counts.items(), key=lambda kv: -kv[1])[:10]:
+            print(f"  {ref:<40}{n:>4}×")
+
+    # Precision (heuristic): did the ref id show up in later assistant output?
+    by_session: dict[str, set[str]] = defaultdict(set)
+    for e in resolved:
+        sid = e.get("session_id") or ""
+        if sid:
+            by_session[sid].add(e["ref"])
+    if by_session:
+        used, unused_counts, checked = 0, defaultdict(int), 0
+        for sid, refs in by_session.items():
+            transcript = _find_transcript(sid)
+            if transcript is None:
+                continue
+            text = _assistant_text(transcript)
+            for ref in refs:
+                checked += 1
+                tail = ref.rsplit("#", 1)[-1]
+                if ref in text or tail in text:
+                    used += 1
+                else:
+                    unused_counts[ref] += 1
+        if checked:
+            print(f"\nprecision (heuristic — ref id appears in later assistant output):")
+            print(f"  {used}/{checked} injected refs referenced later — {used / checked * 100:.0f}%")
+            if unused_counts:
+                worst = ", ".join(f"{r} ({n}×)" for r, n in
+                                  sorted(unused_counts.items(), key=lambda kv: -kv[1])[:5])
+                print(f"  never referenced: {worst}  <- recall pruning candidates")
+        else:
+            print("\nprecision: no matching transcripts found for logged sessions")
+    return 0
+
+
 def cmd_summary(args: argparse.Namespace) -> int:
     print("=" * 72)
     print("GRIST stats summary")
@@ -720,6 +840,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_sum.add_argument("--days", type=int, default=7, help="session window (default: 7)")
     p_sum.add_argument("--project", help="substring filter on project hash dir name")
     p_sum.set_defaults(func=cmd_summary)
+
+    p_rec = sub.add_parser("recall", help="audit auto-recall injections (.grist/recall.log)")
+    p_rec.add_argument("--dir", default=".", help="project root containing .grist/ (default: .)")
+    p_rec.set_defaults(func=cmd_recall)
 
     p_vrf = sub.add_parser("verify", help="verify GRIST installation completeness")
     p_vrf.add_argument("dir", help="project root to verify")

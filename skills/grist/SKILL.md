@@ -42,7 +42,7 @@ The default for general codebase questions. Chat compression is the smallest win
 - All always-on rules above, especially read discipline and never-re-paste-code.
 - Delegate broad searches to a sub-agent; accept only `path:line — symbol — note` back.
 - **Session facts:** when you discover a durable fact about the codebase ("payments flow starts at `create-session.ts:40`"), append one line to `.grist/facts.yaml` (`<slug>: <path:line> — <fact>`). Load that file at session start if present — it replaces re-exploration.
-- **Coexistence:** if another terse-output rule set (e.g. caveman) is already active, defer output style to it entirely; apply only the input-side rules. Never stack two compression styles.
+- **Coexistence:** in chat mode (no BMAD/OpenSpec phase active), if another terse-output rule set (e.g. caveman) is already active, defer output style to it entirely; apply only the input-side rules. Never stack two compression styles. While a design/iterate/ship phase is active (auto-detected or explicit), GRIST owns output style and defers to nothing.
 - Chat: ultra (per Compression rules below) when no other style owns output.
 - No YAML artifacts emitted.
 

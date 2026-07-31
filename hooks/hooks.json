@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session-router.py\""
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Read",
@@ -7,6 +17,15 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/read-discipline.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/activity-sniff.py\""
           }
         ]
       }
@@ -18,6 +37,15 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-grist-yaml.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/recall.py\""
           }
         ]
       }

@@ -38,4 +38,15 @@ Allowed: one-line state-change notes ("found root cause in auth.ts:42", "tests p
 
 ## Chat compression
 
-Drop: articles, filler (just/really/basically/actually), pleasantries, hedging. Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress. No invented abbreviations (cfg/impl/req) — tokenizers gain nothing. If another terse-output rule set (e.g. caveman) is active, defer output style to it; keep the input-side rules above.
+Drop: articles, filler (just/really/basically/actually), pleasantries, hedging. Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress. No invented abbreviations (cfg/impl/req) — tokenizers gain nothing.
+
+**Style ownership:** while a BMAD/OpenSpec phase is active (`.grist/session-state.json` exists, or /grist design|iterate|ship invoked), GRIST owns output style — coding-phase bans and artifact emission rules above apply; any other terse-output rule set (e.g. caveman) is deferred. Outside an active phase, defer output style to caveman (or whatever style is on); keep only the input-side rules above.
+
+## Auto-activation
+
+GRIST arms itself — no manual /grist needed:
+
+- **Prompt triggers** (UserPromptSubmit hook): `/bmad*` commands → design (or ship for dev-story/code-review); `/opsx*` / OpenSpec commands → iterate; `/grist <mode>` → explicit.
+- **Activity triggers** (PreToolUse hook): any Read/Write/Edit under `_bmad/`, `_bmad-output/`, `openspec/` arms the matching phase — catches resumed sessions.
+- State persists in `.grist/session-state.json`; a one-line reminder is re-injected every prompt so the mode never drifts. Exit: "stop grist" / `/grist off`.
+- **Auto-recall** (PostToolUse hook): opening a `*.grist.yaml` artifact auto-resolves the refs it declares (`epic: prd#E1`, `arch: arch#C2`) 1 hop and injects those slices — do not re-read source artifacts for content already injected. Audit with `gristats recall`.
