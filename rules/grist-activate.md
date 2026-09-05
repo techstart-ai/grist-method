@@ -46,7 +46,7 @@ Drop: articles, filler (just/really/basically/actually), pleasantries, hedging. 
 
 GRIST arms itself — no manual /grist needed:
 
-- **Prompt triggers** (UserPromptSubmit hook): `/bmad*` commands → design (or ship for dev-story/code-review); `/opsx*` / OpenSpec commands → iterate; `/grist <mode>` → explicit.
+- **Prompt triggers** (UserPromptSubmit hook): `/bmad*` commands → design (ship for dev-story, review for code-review); `gh pr` / `glab mr` / `/code-review` → review; `/opsx*` / OpenSpec commands → iterate; `/grist <mode>` → explicit.
 - **Activity triggers** (PreToolUse hook): any Read/Write/Edit under `_bmad/`, `_bmad-output/`, `openspec/` arms the matching phase — catches resumed sessions.
 - State persists in `.grist/session-state.json`; a one-line reminder is re-injected every prompt so the mode never drifts. Exit: "stop grist" / `/grist off`.
 - **Auto-recall** (PostToolUse hook): opening a `*.grist.yaml` artifact auto-resolves the refs it declares (`epic: prd#E1`, `arch: arch#C2`) 1 hop and injects those slices — do not re-read source artifacts for content already injected. Audit with `gristats recall`.

@@ -39,7 +39,7 @@ RECOMMENDED_KEYS = {
     "story": [("id", "story"), ("tasks", "acceptance")],
     "change": [("why", "delta")],
     "spec": [],
-    "review": [],
+    "review": [("findings", "verdict", "counts")],
 }
 
 

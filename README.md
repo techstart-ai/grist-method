@@ -81,7 +81,7 @@ Copy `rules/grist-activate.md` into your agent's rule directory:
 
 The skill also runs on claude.ai chat: zip `skills/grist/` and upload it under Settings → Capabilities → Skills (hooks don't apply there; chat mode doesn't need them).
 
-Activate per session with `/grist chat`, `/grist design`, `/grist iterate`, or `/grist ship`.
+Activate per session with `/grist chat`, `/grist design`, `/grist iterate`, `/grist ship`, or `/grist review <PR#>`.
 
 ### Measure impact
 
@@ -105,10 +105,10 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 ```
 .
 ├── .claude-plugin/             # Claude Code plugin + marketplace manifests
-├── skills/grist/SKILL.md       # Four-mode behavior spec (chat / design / iterate / ship)
+├── skills/grist/SKILL.md       # Five-mode behavior spec (chat / design / iterate / ship / review)
 ├── rules/grist-activate.md     # Always-on rules for Cursor / Windsurf / Claude / Cline / Copilot / Codex
 ├── cursor-rules/grist.mdc      # Cursor-specific always-on .mdc rule
-├── hooks/                      # Enforcement: read-discipline (PreToolUse), YAML validation (PostToolUse)
+├── hooks/                      # Enforcement: read-discipline + diff-discipline (PreToolUse), YAML validation (PostToolUse)
 ├── schemas/                    # Lean YAML contracts (prd, architecture, story, review, change, spec)
 │   └── examples/               # Filled examples — read only when unsure of shape
 ├── templates/
@@ -116,7 +116,7 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 ├── converters/                 # Prose → YAML migrators: bmad-{prd,architecture,story}-to-grist.py
 ├── bmad-overrides/             # BMAD plugin overlay (5 workflows)
 ├── openspec-overrides/         # OpenSpec custom schema bundle
-├── gristats/                   # Measurement CLI + grist-get.py slice resolver
+├── gristats/                   # Measurement CLI, grist-get.py slice resolver, grist-diff.py / grist-render.py review pipeline
 ├── commands/                   # /grist slash-command for Claude Code
 ├── docs/plugin-install.md      # Plugin vs installer coverage
 └── examples/auth-v2/           # Realistic fixtures (4.4× measured compression)
@@ -138,7 +138,8 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 | GitHub Copilot (`copilot-instructions.md`) | Shipped | `rules/grist-activate.md` |
 | Codex (`AGENTS.md`) | Shipped | `./install.sh --codex` |
 | Claude Code plugin (skill + command + hooks, no clone) | Shipped | `.claude-plugin/` |
-| Enforcement hooks (read discipline, YAML validation) | Shipped | `hooks/` |
+| Enforcement hooks (read discipline, diff discipline, YAML validation) | Shipped | `hooks/` |
+| PR / MR code review — any repo, GitHub + GitLab (`/grist review`) | Shipped | `gristats/grist-diff.py`, `gristats/grist-render.py`, `hooks/diff-discipline.py` |
 | Auto-activation (BMAD/OpenSpec detection → phase state) | Shipped | `hooks/session-router.py`, `hooks/activity-sniff.py` |
 | Auto-recall (1-hop slice injection on artifact open) | Shipped | `hooks/recall.py`, `gristats recall` |
 | `grist-get` slice resolver (`prd#E1` → 30-token node) | Shipped | `gristats/grist-get.py` |
@@ -151,7 +152,7 @@ Optional: `pip install tiktoken` for accurate token counts (otherwise a `chars/4
 
 ### Four modes
 
-GRIST runs in one of four modes, each tuned to a phase of your workflow:
+GRIST runs in one of five modes, each tuned to a phase of your workflow:
 
 | Mode | Phase | Behavior |
 |---|---|---|
@@ -159,6 +160,7 @@ GRIST runs in one of four modes, each tuned to a phase of your workflow:
 | `/grist design` | BMAD Analysis / Planning / Solutioning | Lite chat. Emit PRDs, Architecture, Stories as structured YAML. No narration before/after artifact writes. |
 | `/grist iterate` | OpenSpec change proposals | Ultra chat. Single `change.grist.yaml` replaces 4-file proposal. Reference specs by ID; never re-paste. |
 | `/grist ship` | Implementation | Ultra chat. Zero compression in code/tests/commits. No preambles, no end-of-turn summaries, no task restatement. Read-discipline rules. |
+| `/grist review` | PR / MR code review — any repo, no framework needed | Pull → review → post, model tokens spent only in the middle. `grist-diff.py` orients (one table: files, sizes, hunks, generated/vendor classification, read plan) so the whole-PR `git diff` never happens; hunks read per file with `-U3`, one read per range; findings emitted as `review-<key>.grist.yaml`; `grist-render.py` turns the YAML into one GitHub review (inline comments, approve / comment / request-changes from `zone`) or GitLab MR note + discussions with zero model tokens. Round two diffs only the new push and addresses prior findings by `review#pr-42#f3`. |
 
 ### Address by ID, not by paraphrase
 
@@ -199,13 +201,13 @@ Rules that bite every turn:
 - Sub-agent searches return only `path:line — symbol — note` lines.
 - Tool output >500 tokens is summarized before quoting back into chat.
 
-Prompt rules drift over long sessions, so GRIST also ships hooks: `hooks/read-discipline.py` (PreToolUse) denies whole-file reads >300 lines with guidance to use a range or grep first, and denies reading a prose `.md` artifact whole when a `.grist.yaml` sibling exists — the deny message names the sibling and the slice-resolver command (`*.grist.yaml`, CLAUDE.md, AGENTS.md exempt; explicit line range or `GRIST_NO_HOOKS=1` to bypass). `hooks/validate-grist-yaml.py` (PostToolUse) blocks malformed artifact writes before they poison downstream agents. Installed automatically by the plugin, or wired into `.claude/settings.json` by `install.sh`.
+Prompt rules drift over long sessions, so GRIST also ships hooks: `hooks/read-discipline.py` (PreToolUse) denies whole-file reads >300 lines with guidance to use a range or grep first, and denies reading a prose `.md` artifact whole when a `.grist.yaml` sibling exists — the deny message names the sibling and the slice-resolver command (`*.grist.yaml`, CLAUDE.md, AGENTS.md exempt; explicit line range or `GRIST_NO_HOOKS=1` to bypass); in review phase it also denies re-reading an identical range. `hooks/diff-discipline.py` (PreToolUse on Bash) closes the leak the Read hook cannot see: a `git diff <range>` with no pathspec is measured with `--numstat` and denied above 200 changed lines (`GRIST_DIFF_THRESHOLD`), and `gh pr diff` / `glab mr diff` are denied outright — `--stat`/`--name-only`, an explicit `-- <path>`, or piping through `head`/`grep` always pass. `hooks/validate-grist-yaml.py` (PostToolUse) blocks malformed artifact writes before they poison downstream agents. Installed automatically by the plugin, or wired into `.claude/settings.json` by `install.sh`.
 
 ### Auto-activation — never forget to turn GRIST on
 
 You shouldn't have to remember `/grist` before every BMAD run. Two hooks arm the right phase automatically:
 
-- **`hooks/session-router.py`** (UserPromptSubmit) — watches every prompt. `/bmad*` planning commands arm **design**; `dev-story` / `code-review` arm **ship**; `/opsx*` / OpenSpec commands arm **iterate**; `/grist <mode>` overrides explicitly. The armed phase is persisted in `.grist/session-state.json` and a one-line reminder is re-injected on every subsequent prompt, so the mode survives the whole workflow instead of evaporating after one turn. `stop grist` / `/grist off` clears it.
+- **`hooks/session-router.py`** (UserPromptSubmit) — watches every prompt. `/bmad*` planning commands arm **design**; `dev-story` arms **ship**; `code-review`, `gh pr review|diff`, `glab mr review|diff`, `/code-review` arm **review**; `/opsx*` / OpenSpec commands arm **iterate**; `/grist <mode>` overrides explicitly. Triggers are command shapes — the bare words "review", "bmad" or "openspec" in prose arm nothing. The armed phase is persisted in `.grist/session-state.json` and a one-line reminder is re-injected on every subsequent prompt, so the mode survives the whole workflow instead of evaporating after one turn. `stop grist` / `/grist off` clears it.
 - **`hooks/activity-sniff.py`** (PreToolUse) — catches sessions the prompt regex misses (resumed mid-workflow): any Read/Write/Edit under `_bmad/`, `_bmad-output/`, or `openspec/` arms the matching phase. An existing phase is never overwritten.
 
 While a phase is armed, GRIST owns output style (no preambles, no end-of-turn summaries) and any other terse chat style (e.g. caveman) is deferred; when no phase is armed the router injects nothing and your default chat style owns the turn. Phase state also labels every turn for `gristats sessions` — shrinking the `unlabeled` bucket.

@@ -1,26 +1,40 @@
-# Review findings contract — replaces markdown "Review Findings" bullets from bmad-code-review.
-# File: review-<story_key>.grist.yaml (one per review pass). Later passes address findings by review#<key>#f<n>.
-# Filled example: schemas/examples/review.example.grist.yaml.
+# Review findings contract — one file per review pass over a PR / MR / diff range.
+# Works standalone (any repo, no BMAD/OpenSpec) and inside bmad-code-review (story-bound keys are optional enrichment).
+# File: .grist/reviews/review-<key>.grist.yaml  (key = pr-42, mr-17, or <base>..<head> slug).
+# Later passes address findings by review#<key>#f<n> — never re-read prose.
+# Render to a GitHub/GitLab review or Markdown with: python3 gristats/grist-render.py <file> --target github|gitlab|md
+# Filled examples: schemas/examples/review-pr.example.grist.yaml (standalone), review.example.grist.yaml (BMAD).
 # req = required; everything else optional — omit empty/null keys in emitted artifacts.
 
-review: <story_key>               # req, matches story (S1.1 or 1-2-user-auth)
-story: prd#<slug>#<story_key>     # req, ref to story
+review: <key>                     # req, pr-42 | mr-17 | S1.1 | main..feat-x
 date: <YYYY-MM-DD>                # req
-mode: full|no-spec                # matches bmad-code-review review_mode
-diff_source: <branch, commit range, PR url, or "uncommitted">
-spec: <path>                      # spec used by Acceptance Auditor (prefer .grist.yaml)
-layers_ran: [blind, edge, auditor]
-failed_layers: [<layer>]          # only if a layer failed
+verdict: <one-line>               # req, overall judgement, ≤200 chars
+zone: green|yellow|red            # req; green→approve, yellow→comment, red→request-changes
+pr: <owner/repo#n | url | !n>     # PR / MR reference (gh: owner/repo#n; glab: !n or url)
+base: <ref or sha>                # diff base
+head: <ref or sha>                # diff head; round-2 passes diff head_prev..head
+diff_source: <branch, range, PR url, or "uncommitted">
+story: prd#<slug>#<story_key>     # BMAD only — story under review
+spec: <path>                      # BMAD only — spec used by Acceptance Auditor
+mode: full|no-spec                # BMAD only — bmad-code-review review_mode
+layers_ran: [blind, edge, auditor]   # BMAD only
+failed_layers: [<layer>]          # BMAD only, only if a layer failed
+skipped:                          # files excluded from reads, with reason
+  - {path: <path>, reason: generated|lockfile|vendor|snapshot|minified|binary}
 findings:                         # flat list, post-triage
   - id: f1                        # req, sequential
     class: patch|decision-needed|defer|dismiss    # req
     severity: low|med|high|crit
-    source: blind|edge|auditor    # merged layers as blind+edge
-    loc: <path:line>              # req if known
+    source: blind|edge|auditor    # merged layers as blind+edge (BMAD); omit standalone
+    loc: <path:line>              # req if known; line = head-side line, used for inline comment
     title: <one-line>             # req
     detail: <one-line, ≤200 chars>  # req
     fix: <one-line>               # req for class=patch
-    ac_ref: ac<n>                 # auditor findings only — which AC violated
+    ac_ref: ac<n>                 # BMAD auditor findings only — which AC violated
+verified:                         # checks passed, from ranges already in context (no new reads)
+  - {what: <one-line>, how: <one-line>}
+handoffs:                         # items outside review scope for a named owner
+  - {to: <team|person>, what: <one-line>}
 counts: {decision_needed: 0, patch: 0, defer: 0, dismissed: 0}   # req summary
-resolutions:                      # populated as findings are addressed
+resolutions:                      # populated on later passes as findings are addressed
   - {finding: f1, status: pending|resolved|deferred|wontfix, resolved_in: <sha>, note: <one-line>}

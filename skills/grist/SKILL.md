@@ -1,9 +1,10 @@
 ---
 name: grist
 description: >
-  Token-efficient mode for BMAD-method, OpenSpec workflows, and general chat. Four phase-bound modes:
-  /grist chat (cheap-context Q&A), /grist design (BMAD planning), /grist iterate (OpenSpec changes), /grist ship (coding).
-  Auto-triggers on /grist, "grist mode", "ship mode", BMAD phase transitions, OpenSpec proposal commands.
+  Token-efficient mode for BMAD-method, OpenSpec workflows, PR code review, and general chat. Five phase-bound modes:
+  /grist chat (cheap-context Q&A), /grist design (BMAD planning), /grist iterate (OpenSpec changes), /grist ship (coding),
+  /grist review (PR / MR review in any repo — no framework needed).
+  Auto-triggers on /grist, "grist mode", "ship mode", BMAD phase transitions, OpenSpec proposal commands, gh pr / glab mr / /code-review.
 ---
 
 Compress context, not just chat. Compress artifacts to YAML. Suppress coding-phase narration. Code itself never compressed.
@@ -12,7 +13,7 @@ Compress context, not just chat. Compress artifacts to YAML. Suppress coding-pha
 
 Active every response after activation. No drift across turns. Off only on "stop grist" / "normal mode" / `/grist off`.
 
-Default mode if just `/grist`: **ship**. Switch: `/grist chat|design|iterate|ship`.
+Default mode if just `/grist`: **ship**. Switch: `/grist chat|design|iterate|ship|review`.
 
 ## Always-on rules (every mode)
 
@@ -73,6 +74,23 @@ For `bmad-dev-story`, `bmad-code-review`, OpenSpec tasks, any edits serving a kn
 - Allowed: one-line state-change notes ("root cause auth.ts:42", "tests pass"); direct questions when blocked.
 - Load the story via `grist-get 'story#<id>'`, not by opening planning dirs.
 
+### /grist review — PR / MR / diff review (any repo; BMAD/OpenSpec optional)
+
+For `/grist review <PR#|!MR|base..head>`, `gh pr review`, `glab mr review`, `/code-review`, `bmad-code-review`. Pipeline: pull → review → post. Model tokens are spent only in the middle step.
+
+- Chat: ultra. Client-facing text (review body, inline comments) is never written by the model — the renderer writes full sentences from the YAML (auto-clarity by construction).
+- **Orient before reading:** `python3 gristats/grist-diff.py <base>...<head>` (or `--pr N` / `--mr N`). One compact table: path, +/-, hunks, class. Never `git diff` the whole PR to decide what matters — the hook denies it above the threshold (200 lines, `GRIST_DIFF_THRESHOLD`). Under the threshold, one `git diff -U3 <range> -- <paths>` is allowed: fewer calls beats fewer bytes.
+- **Exclude noise from reads:** lockfiles, generated code, `vendor/`, snapshots, minified assets, binaries. grist-diff classifies them (built-in rules + `.gitattributes` `linguist-generated` + `.grist/review-ignore` globs); copy its `skipped_yaml:` block into `skipped:`.
+- **Read hunks, not files:** `git diff -U3 <range> -- <path>`; surrounding context by line range (`sed -n 'a,bp'` or Read with offset/limit), never whole files; cap 3 context files unless a `high|crit` finding needs more.
+- **One read per range.** Never re-read a file to answer a second question about it — answer from context (hook denies identical re-reads in review phase). A second read of the same file must be a non-overlapping range.
+- **Verify without new reads:** `verified[]` entries cite ranges already loaded. New reads for verification only when severity ≥ high.
+- Never quote diff back in reasoning or the verdict; refer by `path:line`.
+- Rubric lives in CLAUDE.md `## Review rubric` when the project has one (cached prefix, never re-read). Default otherwise: correctness, error handling, security, tests present for new logic, perf regressions, API/contract breaks.
+- Sub-agents (if used) return one finding per line: `<path>:<line> — <severity> — <problem>. <fix>.` No preamble, no summary paragraphs.
+- **Emit** `.grist/reviews/review-<key>.grist.yaml` per `schemas/review.grist.yaml` (key = `pr-42`, `mr-17`, or `<base>..<head>`): `verdict`, `zone` (green|yellow|red), `findings[]`, `verified[]`, `handoffs[]`, `skipped[]`, `counts`. Read the contract once; `schemas/examples/review-pr.example.grist.yaml` only if unsure of shape. Story/spec keys are optional BMAD enrichment.
+- **Post** with `python3 gristats/grist-render.py <file> --target github|gitlab|md` (dry run), then `--post`. GitHub: one Pull Request Review with inline comments, `zone` → APPROVE / COMMENT / REQUEST_CHANGES. GitLab: one MR note + one discussion per finding. Confirm with the user before `--post` unless they already asked to publish.
+- **Round two:** on a new push, diff `head_prev...head_new` only; address prior findings by `review#<key>#f<n>`, fill `resolutions[]`, never re-read the first-round files.
+
 ## Compression rules (chat)
 
 Drop: articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries, hedging.
@@ -92,6 +110,7 @@ Good (`/grist ship`): [greps symbol] [reads 30-line range] [edits] "Done. Test p
 - Modes + rules: this file
 - Schema contracts: `schemas/*.grist.yaml`; filled examples: `schemas/examples/`
 - Slice resolver: `gristats/grist-get.py`
-- Enforcement hooks: `hooks/read-discipline.py`, `hooks/validate-grist-yaml.py`
+- Review pipeline: `gristats/grist-diff.py` (orient + classify), `gristats/grist-render.py` (YAML → GitHub/GitLab/Markdown review)
+- Enforcement hooks: `hooks/read-discipline.py`, `hooks/diff-discipline.py`, `hooks/validate-grist-yaml.py`
 - Converters: `converters/bmad-{prd,architecture,story}-to-grist.py`
 - Measurement: `gristats/gristats.py` (`project`, `sessions`, `rereads`, `summary`)

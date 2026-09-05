@@ -1,0 +1,37 @@
+# Filled standalone example for schemas/review.grist.yaml (tight style, no BMAD/OpenSpec)
+review: pr-42
+date: 2026-09-06
+verdict: token exchange error handling must be fixed before merge; rest is sound
+zone: red
+pr: acme/shop#42
+base: 3f9c2a1
+head: b7e41d0
+skipped:
+  - {path: pnpm-lock.yaml, reason: lockfile}
+  - {path: src/generated/api.ts, reason: generated}
+findings:
+  - id: f1
+    class: patch
+    severity: high
+    loc: src/auth/okta.ts:42
+    title: token exchange swallows network errors
+    detail: catch block returns null instead of propagating; downstream sees fake "no session"
+    fix: re-throw or return tagged error result
+  - id: f2
+    class: decision-needed
+    severity: med
+    loc: src/middleware.ts:18
+    title: session refresh skips audit log
+    detail: refresh path bypasses logger; every other auth transition is audited
+  - id: f3
+    class: defer
+    severity: low
+    loc: src/auth/session.ts:7
+    title: redis client created per request
+    detail: pre-existing; not introduced by this change
+verified:
+  - {what: new env var has default, how: config/env.ts:12 falls back to 15m}
+  - {what: tests cover happy path, how: okta.test.ts:30-58 exercises exchange + refresh}
+handoffs:
+  - {to: platform, what: redis client lifecycle (f3) — track as separate ticket}
+counts: {decision_needed: 1, patch: 1, defer: 1, dismissed: 0}

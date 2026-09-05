@@ -8,7 +8,7 @@
     {
       "name": "grist",
       "source": "./",
-      "description": "Token-efficient mode for AI coding agents — YAML planning artifacts, ID-addressed references, read-discipline hooks. 4 modes: /grist chat|design|iterate|ship."
+      "description": "Token-efficient mode for AI coding agents — YAML planning artifacts, ID-addressed references, read-discipline hooks, PR review pipeline. 5 modes: /grist chat|design|iterate|ship|review."
     }
   ]
 }

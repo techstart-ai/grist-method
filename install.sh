@@ -27,7 +27,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GRIST_INSTALLER_VERSION="1.3.0"
+GRIST_INSTALLER_VERSION="1.4.0"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -307,17 +307,20 @@ PY
         log_info "[dry-run] Would register GRIST hooks in .claude/settings.json"
       else
         mkdir -p "$HOOKS_DST"
-        for hook in read-discipline.py validate-grist-yaml.py session-router.py activity-sniff.py recall.py; do
+        for hook in read-discipline.py diff-discipline.py validate-grist-yaml.py session-router.py activity-sniff.py recall.py; do
           cp "$HOOKS_SRC/$hook" "$HOOKS_DST/$hook"
           chmod +x "$HOOKS_DST/$hook"
           log_ok ".grist/hooks/$hook"
         done
         # recall.py resolves slices via grist-get; ship it alongside the hooks.
-        if [[ -f "$GRIST_ROOT/gristats/grist-get.py" ]]; then
-          cp "$GRIST_ROOT/gristats/grist-get.py" "$HOOKS_DST/grist-get.py"
-          chmod +x "$HOOKS_DST/grist-get.py"
-          log_ok ".grist/hooks/grist-get.py"
-        fi
+        # grist-diff / grist-render power /grist review in repos without a clone.
+        for tool in grist-get.py grist-diff.py grist-render.py; do
+          if [[ -f "$GRIST_ROOT/gristats/$tool" ]]; then
+            cp "$GRIST_ROOT/gristats/$tool" "$HOOKS_DST/$tool"
+            chmod +x "$HOOKS_DST/$tool"
+            log_ok ".grist/hooks/$tool"
+          fi
+        done
 
         mkdir -p "$PROJECT_ROOT/.claude"
         if python3 - "$SETTINGS_FILE" <<'PY'
@@ -367,6 +370,10 @@ register(
 register(
     "PreToolUse", "Read|Write|Edit",
     'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/activity-sniff.py"',
+)
+register(
+    "PreToolUse", "Bash",
+    'python3 "$CLAUDE_PROJECT_DIR/.grist/hooks/diff-discipline.py"',
 )
 register(
     "PostToolUse", "Write|Edit",
