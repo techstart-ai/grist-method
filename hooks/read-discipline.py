@@ -7,6 +7,9 @@ Deterministically enforces the GRIST read discipline:
   2. Never read a prose .md artifact whole when a .grist.yaml sibling
      exists — denied with a redirect to the sibling / slice resolver.
      An explicit offset/limit range escapes (deliberate prose read).
+  3. Review phase only (.grist/session-state.json phase == review): one
+     read per range. Re-reading an identical (file, offset, limit) is
+     denied — the answer is already in context; cite path:line instead.
 
 Contract (Claude Code hooks):
   stdin  — JSON object with at least: tool_name, tool_input
@@ -26,6 +29,8 @@ import os
 import sys
 
 MAX_LINES = 300
+STATE_REL = os.path.join(".grist", "session-state.json")
+MAX_LOGGED_READS = 500
 
 # Files that are meant to be read whole (compressed GRIST artifacts).
 EXEMPT_BASENAMES = {"CLAUDE.md", "AGENTS.md"}
@@ -102,6 +107,41 @@ def count_lines(file_path):
         return None
 
 
+def _state_path(payload):
+    root = os.environ.get("CLAUDE_PROJECT_DIR") or payload.get("cwd") or os.getcwd()
+    return os.path.join(root, STATE_REL)
+
+
+def check_reread(payload, file_path, offset, limit):
+    """Review phase: deny an identical repeat read; otherwise log this one."""
+    path = _state_path(payload)
+    try:
+        with open(path) as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        return
+    if not isinstance(state, dict) or state.get("phase") != "review":
+        return
+    key = "%s@%s+%s" % (os.path.normpath(file_path), offset if offset is not None else "",
+                        limit if limit is not None else "")
+    reads = state.get("reads") or []
+    if key in reads:
+        deny(
+            "GRIST review: %s (offset %s, limit %s) was already read this session — "
+            "answer from what is in context and cite path:line. Read a different, "
+            "non-overlapping range if a finding needs more, or set GRIST_NO_HOOKS=1."
+            % (file_path, offset if offset is not None else "whole", limit if limit is not None else "whole")
+        )
+    reads.append(key)
+    state["reads"] = reads[-MAX_LOGGED_READS:]
+    try:
+        with open(path, "w") as f:
+            json.dump(state, f, indent=0)
+            f.write("\n")
+    except OSError:
+        pass
+
+
 def main():
     try:
         payload = json.load(sys.stdin)  # always drain stdin first (avoid SIGPIPE)
@@ -117,12 +157,15 @@ def main():
     if not isinstance(tool_input, dict):
         allow()
 
-    # A targeted read is already disciplined.
-    if tool_input.get("offset") is not None or tool_input.get("limit") is not None:
-        allow()
-
     file_path = tool_input.get("file_path")
     if not file_path or not isinstance(file_path, str):
+        allow()
+
+    offset, limit = tool_input.get("offset"), tool_input.get("limit")
+    check_reread(payload, file_path, offset, limit)
+
+    # A targeted read is already disciplined.
+    if offset is not None or limit is not None:
         allow()
 
     if is_exempt(file_path):

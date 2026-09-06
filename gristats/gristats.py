@@ -9,7 +9,7 @@ Two layers:
 
 2. **Claude Code session tracking** (real input/output tokens) — parses
    ~/.claude/projects/<hash>/<session>.jsonl transcripts, groups token
-   usage by GRIST phase (design / iterate / ship), reports cache hit rate.
+   usage by GRIST phase (design / iterate / ship / review), reports cache hit rate.
 
 Subcommands:
     gristats compare <a> <b>          pairwise file comparison
@@ -191,7 +191,8 @@ PHASE_PATTERNS = [
     ("ship",     re.compile(r"(?:^|\s)/grist\s+ship(?:\s|$)|/grist-ship\b", re.IGNORECASE)),
     ("design",   re.compile(r"(?:^|\s)/grist\s+design(?:\s|$)|/grist-design\b|bmad-create-(?:prd|architecture|story)\b", re.IGNORECASE)),
     ("iterate",  re.compile(r"(?:^|\s)/grist\s+iterate(?:\s|$)|/grist-iterate\b|/openspec:proposal\b|/opsx:propose\b|/opsx:new\b|/opsx:continue\b|/opsx:ff\b", re.IGNORECASE)),
-    ("ship",     re.compile(r"bmad-dev-story\b|bmad-code-review\b|/opsx:apply\b|/opsx:verify\b", re.IGNORECASE)),
+    ("review",   re.compile(r"(?:^|\s)/grist\s+review(?:\s|$)|/grist-review\b|bmad-code-review\b|/code-review\b|gh\s+pr\s+(?:review|diff)\b|glab\s+mr\s+(?:review|diff)\b", re.IGNORECASE)),
+    ("ship",     re.compile(r"bmad-dev-story\b|/opsx:apply\b|/opsx:verify\b", re.IGNORECASE)),
     ("caveman",  re.compile(r"(?:^|\s)/caveman(?:\s|$)|/caveman-(?:commit|review|compress)\b", re.IGNORECASE)),
     ("off",      re.compile(r"(?:^|\s)/grist\s+off(?:\s|$)|stop grist\b|normal mode\b", re.IGNORECASE)),
 ]

@@ -17,9 +17,9 @@ To update later:
 
 ## What the plugin covers
 
-- **`/grist` slash command** — the four modes: `/grist chat|design|iterate|ship`
+- **`/grist` slash command** — the five modes: `/grist chat|design|iterate|ship|review`
 - **GRIST skill** — auto-loaded guidance for token-efficient workflows (YAML planning artifacts, ID-addressed references)
-- **Hooks** — read-discipline enforcement (PreToolUse on Read) and GRIST YAML validation (PostToolUse on Write/Edit)
+- **Hooks** — read-discipline enforcement (PreToolUse on Read), diff-discipline (PreToolUse on Bash: no whole-PR `git diff`), and GRIST YAML validation (PostToolUse on Write/Edit)
 
 ## What the plugin does NOT cover
 

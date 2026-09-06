@@ -33,6 +33,9 @@ jobs:
     - name: Run Auto-Activation Hook Smoke Test
       run: ./test/smoke-test-autoactivate.sh
 
+    - name: Run Review Pipeline Smoke Test
+      run: ./test/smoke-test-review.sh
+
     - name: Run Converter Unit Tests
       run: python3 -m unittest discover converters -v
 
@@ -42,3 +45,6 @@ jobs:
         python3 converters/bmad-prd-to-grist.py examples/auth-v2/PRD.md > /tmp/check.yaml
         python3 gristats/grist-get.py 'prd#E1' --dir examples/auth-v2
         python3 gristats/grist-get.py --list prd --dir examples/auth-v2
+        python3 gristats/grist-render.py schemas/examples/review-pr.example.grist.yaml > /tmp/review.md
+        # shallow checkout: diff against the empty tree instead of HEAD~1
+        python3 gristats/grist-diff.py "$(git hash-object -t tree /dev/null)..HEAD" | tail -3

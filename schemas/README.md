@@ -9,7 +9,7 @@ emission style — valid YAML, no placeholders.
 | `prd.grist.yaml` | `examples/prd.example.grist.yaml` | `prd.grist.yaml` (BMAD PRD) |
 | `architecture.grist.yaml` | `examples/architecture.example.grist.yaml` | `architecture.grist.yaml` |
 | `story.grist.yaml` | `examples/story.example.grist.yaml` | `story-S<n>.<m>.grist.yaml` |
-| `review.grist.yaml` | `examples/review.example.grist.yaml` | `review-<story_key>.grist.yaml` |
+| `review.grist.yaml` | `examples/review-pr.example.grist.yaml` (standalone), `examples/review.example.grist.yaml` (BMAD) | `.grist/reviews/review-<key>.grist.yaml` — render with `gristats/grist-render.py` |
 | `change.grist.yaml` | `examples/change.example.grist.yaml` | OpenSpec `change.grist.yaml` |
 | `spec.grist.yaml` | `examples/spec.example.grist.yaml` | OpenSpec `spec.grist.yaml` |
 

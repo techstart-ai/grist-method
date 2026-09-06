@@ -8,7 +8,8 @@ mid-workflow. When no BMAD/OpenSpec state is armed, injects nothing — an
 always-on chat style (e.g. caveman) owns output.
 
 Phase mapping:
-  BMAD dev-story / code-review ........... ship
+  /grist review, gh pr / glab mr, /code-review, BMAD code-review ... review
+  BMAD dev-story ......................... ship
   BMAD anything else (prd, arch, story) .. design
   OpenSpec /opsx propose|apply|archive ... iterate
   /grist <mode> .......................... explicit override
@@ -35,10 +36,16 @@ STATE_REL = os.path.join(".grist", "session-state.json")
 # --- trigger patterns -------------------------------------------------------
 
 RE_OFF = re.compile(r"(?:^|\s)(?:/grist\s+off|stop\s+grist|normal\s+mode)\b", re.I)
-RE_GRIST = re.compile(r"(?:^|\s)/grist\b(?:\s+(chat|design|iterate|ship))?", re.I)
-RE_BMAD = re.compile(r"(?:^|\s)/?bmad[\w:-]*", re.I)
-RE_BMAD_SHIP = re.compile(r"dev[\s-]?story|code[\s-]?review|review[\s-]?story|story[\s-]?done", re.I)
-RE_OPSX = re.compile(r"(?:^|\s)/?(?:opsx[\w:-]*|openspec\b)", re.I)
+RE_GRIST = re.compile(r"(?:^|\s)/grist\b(?:\s+(chat|design|iterate|ship|review))?", re.I)
+RE_BMAD = re.compile(r"(?:^|\s)/bmad[\w:-]*|\bbmad[-:][\w:-]+", re.I)
+RE_BMAD_SHIP = re.compile(r"dev[\s-]?story|story[\s-]?done", re.I)
+RE_BMAD_REVIEW = re.compile(r"code[\s-]?review|review[\s-]?story", re.I)
+# Command shapes only — a bare word like "review" or "openspec" in prose must not arm a phase.
+RE_REVIEW = re.compile(
+    r"(?:^|\s)(?:/code-review\b|/review-pr\b|gh\s+pr\s+(?:review|diff|view|checkout)\b|"
+    r"glab\s+mr\s+(?:review|diff|view|checkout)\b|review\s+(?:pr|mr|pull\s+request|merge\s+request)\s*[#!]?\d+)",
+    re.I)
+RE_OPSX = re.compile(r"(?:^|\s)/(?:opsx[\w:-]*|openspec[\w:-]*)\b|\bopenspec\s+(?:propose|apply|archive|new|ff|continue|verify)\b", re.I)
 
 FULL_CONTEXT = (
     "GRIST %(phase)s mode auto-active (%(why)s). Rules for the rest of this workflow:\n"
@@ -49,7 +56,16 @@ FULL_CONTEXT = (
     "end-of-turn summaries, no task restatement; emit .grist.yaml artifacts in "
     "tight style (no comments, flow lists, omit empty keys). Any other terse "
     "chat style (e.g. caveman) is deferred until this mode exits.\n"
+    "%(extra)s"
     "- Exit: 'stop grist' or '/grist off'."
+)
+
+REVIEW_EXTRA = (
+    "- Review: orient with python3 gristats/grist-diff.py <base>...<head> (or --pr N) before any "
+    "diff read; never `git diff` the whole PR above the threshold; read hunks with -U3 per file, "
+    "context by line range, at most 3 context files; one read per range — answer later questions "
+    "from what is already loaded. Emit .grist/reviews/review-<key>.grist.yaml (schemas/review.grist.yaml); "
+    "python3 gristats/grist-render.py <file> --target github|gitlab|md writes the prose — you never do.\n"
 )
 
 REMINDER = (
@@ -111,9 +127,13 @@ def detect_phase(prompt):
     if RE_OPSX.search(prompt):
         return "iterate", "OpenSpec command detected"
     if RE_BMAD.search(prompt):
+        if RE_BMAD_REVIEW.search(prompt):
+            return "review", "BMAD code-review detected"
         if RE_BMAD_SHIP.search(prompt):
             return "ship", "BMAD dev workflow detected"
         return "design", "BMAD planning workflow detected"
+    if RE_REVIEW.search(prompt):
+        return "review", "PR review command detected"
     return None, None
 
 
@@ -152,7 +172,8 @@ def main():
             "ts": int(time.time()),
             "recalled": (state or {}).get("recalled", []),
         })
-        out(FULL_CONTEXT % {"phase": phase, "why": why})
+        out(FULL_CONTEXT % {"phase": phase, "why": why,
+                            "extra": REVIEW_EXTRA if phase == "review" else ""})
 
     if state:
         # Freshly armed by activity-sniff (PreToolUse) — give the full block once.
@@ -160,7 +181,8 @@ def main():
             state["announced"] = True
             save_state(state_path, state)
             out(FULL_CONTEXT % {"phase": state["phase"],
-                                "why": state.get("why", "workflow files detected")})
+                                "why": state.get("why", "workflow files detected"),
+                                "extra": REVIEW_EXTRA if state["phase"] == "review" else ""})
         out(REMINDER % {"phase": state["phase"]})
 
     out()  # no state, no trigger — caveman/default owns the turn
