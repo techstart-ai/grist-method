@@ -46,4 +46,5 @@ jobs:
         python3 gristats/grist-get.py 'prd#E1' --dir examples/auth-v2
         python3 gristats/grist-get.py --list prd --dir examples/auth-v2
         python3 gristats/grist-render.py schemas/examples/review-pr.example.grist.yaml > /tmp/review.md
-        python3 gristats/grist-diff.py HEAD~1...HEAD
+        # shallow checkout: diff against the empty tree instead of HEAD~1
+        python3 gristats/grist-diff.py "$(git hash-object -t tree /dev/null)..HEAD" | tail -3

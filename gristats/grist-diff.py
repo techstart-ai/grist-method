@@ -74,7 +74,10 @@ def run(cmd, stdin=None, check=True):
     except OSError as e:
         die("cannot run %s: %s" % (cmd[0], e))
     if check and p.returncode != 0:
-        die((p.stderr or p.stdout or "command failed").strip().splitlines()[-1])
+        msg = (p.stderr or p.stdout or "command failed").strip().splitlines()[-1]
+        if cmd[:2] == ["git", "diff"] and ("unknown revision" in msg or "bad revision" in msg or msg.startswith("'git <command>")):
+            msg += "  (range not resolvable — shallow clone? try `git fetch --unshallow` or an explicit <base>..<head>)"
+        die(msg)
     return p.stdout
 
 
