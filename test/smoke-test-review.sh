@@ -138,9 +138,9 @@ check "router: bmad code-review arms review (not ship)" "grep -q '\"phase\": \"r
 rm -f "$STATE"; router '/bmad dev-story S1.1' > /dev/null
 check "router: bmad dev-story still arms ship" "grep -q '\"phase\": \"ship\"' '$STATE'"
 rm -f "$STATE"; OUT="$(router 'can you review this function for me?')"
-check "router: bare word review arms nothing" "[[ -z \"\$OUT\" && ! -f '$STATE' ]]"
+check "router: bare word review arms nothing" "[[ \"\$OUT\" != *'mode auto-active'* && ! -f '$STATE' ]]"
 OUT="$(router 'this repo does not use BMAD nor OpenSpec')"
-check "router: bare words bmad/openspec arm nothing" "[[ -z \"\$OUT\" && ! -f '$STATE' ]]"
+check "router: bare words bmad/openspec arm nothing" "[[ \"\$OUT\" != *'mode auto-active'* && ! -f '$STATE' ]]"
 router '/opsx propose x' > /dev/null
 check "router: /opsx still arms iterate" "grep -q '\"phase\": \"iterate\"' '$STATE'"
 rm -f "$STATE"

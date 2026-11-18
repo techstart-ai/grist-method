@@ -4,8 +4,8 @@
 Auto-activates the right GRIST phase when BMAD / OpenSpec commands appear in
 the prompt, persists that phase in .grist/session-state.json, and re-injects a
 one-line reminder on every subsequent prompt so the mode never evaporates
-mid-workflow. When no BMAD/OpenSpec state is armed, injects nothing — an
-always-on chat style (e.g. caveman) owns output.
+mid-workflow. When no BMAD/OpenSpec state is armed, injects a short chat style
+(adapted from caveman 4.1) that yields to any other terse style already on.
 
 Phase mapping:
   /grist review, gh pr / glab mr, /code-review, BMAD code-review ... review
@@ -13,7 +13,7 @@ Phase mapping:
   BMAD anything else (prd, arch, story) .. design
   OpenSpec /opsx propose|apply|archive ... iterate
   /grist <mode> .......................... explicit override
-  'stop grist' / '/grist off' ............ clear state
+  'stop grist' / '/grist off' ............ clear state, silence chat style
 
 Contract (Claude Code hooks):
   stdin  — JSON: {prompt, cwd, session_id, ...}
@@ -21,7 +21,8 @@ Contract (Claude Code hooks):
                                    "additionalContext": "..."}}
   exit   — always 0 (fail open)
 
-Escape hatch: GRIST_NO_HOOKS=1 disables everything.
+Escape hatch: GRIST_NO_HOOKS=1 disables everything; GRIST_CHAT_STYLE=0
+disables only the no-phase chat style.
 Stdlib only. Python >= 3.7.
 """
 
@@ -32,6 +33,8 @@ import sys
 import time
 
 STATE_REL = os.path.join(".grist", "session-state.json")
+# Marker left by 'stop grist' so the no-phase chat style stays off until a phase is armed.
+STYLE_OFF_REL = os.path.join(".grist", "chat-style-off")
 
 # --- trigger patterns -------------------------------------------------------
 
@@ -71,6 +74,17 @@ REVIEW_EXTRA = (
 REMINDER = (
     "GRIST %(phase)s mode active (auto). Read discipline + slice refs in force; "
     "GRIST owns output style — no preambles/summaries. Exit: 'stop grist'."
+)
+
+CHAT_STYLE = (
+    "GRIST chat style (no phase armed): answer first, then reason, then next step; "
+    "no greeting, recap, closer, hedging or filler.\n"
+    "- Short words; articles optional, but keep not/never/no/only/except and exact numbers; "
+    "code, commands, paths verbatim; errors as the shortest decisive line.\n"
+    "- No text between routine tool calls; show changed lines, not whole files.\n"
+    "- Full sentences (still no greeting or recap) for security warnings, irreversible actions, "
+    "questions to the user, and anything saved outside chat (commits, PRs, issue comments, docs). "
+    "Another terse style (e.g. caveman) active: follow it instead. Off: 'stop grist'."
 )
 
 
@@ -119,6 +133,14 @@ def clear_state(path):
         pass
 
 
+def touch(path):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, "w").close()
+    except OSError:
+        pass
+
+
 def detect_phase(prompt):
     """Return (phase, why) or (None, None)."""
     m = RE_GRIST.search(prompt)
@@ -152,15 +174,18 @@ def main():
         out()
 
     state_path = os.path.join(project_dir(payload), STATE_REL)
+    style_off_path = os.path.join(project_dir(payload), STYLE_OFF_REL)
 
     if RE_OFF.search(prompt):
         clear_state(state_path)
+        touch(style_off_path)
         out("GRIST mode off. Default chat style (e.g. caveman) owns output again.")
 
     state = load_state(state_path)
     phase, why = detect_phase(prompt)
 
     if phase:
+        clear_state(style_off_path)  # arming a phase turns GRIST back on
         if state and state.get("phase") == phase:
             # Same phase re-triggered — just remind.
             out(REMINDER % {"phase": phase})
@@ -185,7 +210,10 @@ def main():
                                 "extra": REVIEW_EXTRA if state["phase"] == "review" else ""})
         out(REMINDER % {"phase": state["phase"]})
 
-    out()  # no state, no trigger — caveman/default owns the turn
+    # No state, no trigger — plain chat.
+    if os.environ.get("GRIST_CHAT_STYLE") == "0" or os.path.exists(style_off_path):
+        out()
+    out(CHAT_STYLE)
 
 
 if __name__ == "__main__":

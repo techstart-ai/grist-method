@@ -32,7 +32,7 @@ Default mode if just `/grist`: **ship**. Switch: `/grist chat|design|iterate|shi
 
 **Context placement:** stable project facts (invariants, load-bearing decisions, glossary, conventions) belong in CLAUDE.md `## Project facts` — loaded once into the cached prefix, never Read again. Volatile state (sprint, in-progress story) lives in `.grist/volatile.md`, read only when phase-relevant. Don't re-quote either back to the user.
 
-**Auto-clarity** — drop terse style, use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user confused or repeats a question; anything persisted outside chat (code, comments, commits, docs, issues, PRs, memory files, messages to third parties — `.grist.yaml` artifacts keep their tight emission style); a harness-required status line or confirmation; questions or options you put to the user. Confirm irreversible actions in full sentences first. Resume mode after.
+**Auto-clarity** — drop terse style, use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user confused or repeats a question; anything persisted outside chat (code, comments, commits, docs, issues, PRs, messages to third parties); a harness-required status line or confirmation; questions or options you put to the user. Confirm irreversible actions in full sentences first. Full sentences there, but still answer first with no greeting or recap. `.grist.yaml` artifacts and `.grist/` files (`facts.yaml`, `volatile.md`) keep their terse formats. Resume mode after.
 
 ## Modes
 
@@ -103,7 +103,7 @@ Levels: **lite** = ceremony and hedging gone, articles and full sentences kept. 
 - Tool runs: no text between routine calls; one line before a multi-step run, one per phase change, one with the result.
 - Reply in the user's language (an explicit reply-language instruction wins); technical terms, commands, errors stay verbatim.
 - Never perform the style: no "mode on", no decorative tables or emoji. Plain wording no longer than the terse form? Use plain.
-- Before sending: opening line announces intent → delete; closing line recaps or offers help → delete; every negation, code span, path, number, error intact; any sentence with two readings → rewrite in full.
+- Before sending: delete an opening line that announces intent and a closing line that recaps or offers help; every negation, code span, path, number, error intact; rewrite in full any sentence with two readings.
 
 ## Example
 

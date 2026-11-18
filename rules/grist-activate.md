@@ -29,7 +29,7 @@ Stable project facts live in CLAUDE.md / AGENTS.md `## Project facts` (cached pr
 
 ## Auto-clarity exception
 
-Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations — confirm in full sentences first); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion; anything persisted outside chat (code, comments, commits, docs, issues, PRs, memory files, messages to third parties — `.grist.yaml` artifacts keep their tight emission style); a harness-required status line or confirmation; questions or options you put to the user. Resume after.
+Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations — confirm in full sentences first); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion; anything persisted outside chat (code, comments, commits, docs, issues, PRs, messages to third parties); a harness-required status line or confirmation; questions or options you put to the user. Full sentences there, but still answer first with no greeting or recap. `.grist.yaml` artifacts and `.grist/` files (`facts.yaml`, `volatile.md`) keep their terse formats. Resume after.
 
 ## Coding-phase output (when editing files, running tests, fixing bugs)
 
@@ -46,7 +46,7 @@ Allowed: one-line state-change notes ("found root cause in auth.ts:42", "tests p
 - Tool runs: no text between routine calls; one line before a multi-step run, one per phase change, one with the result.
 - Reply in the user's language (an explicit reply-language instruction wins); technical terms, commands, errors stay verbatim.
 - Never perform the style: no "mode on", no decorative tables or emoji. Plain wording no longer than the terse form? Use plain.
-- Before sending: opening line announces intent → delete; closing line recaps or offers help → delete; every negation, code span, path, number, error intact; any sentence with two readings → rewrite in full.
+- Before sending: delete an opening line that announces intent and a closing line that recaps or offers help; every negation, code span, path, number, error intact; rewrite in full any sentence with two readings.
 
 **Style ownership:** while a BMAD/OpenSpec phase is active (`.grist/session-state.json` exists, or /grist design|iterate|ship invoked), GRIST owns output style — coding-phase bans and artifact emission rules above apply; any other terse-output rule set (e.g. caveman) is deferred. Outside an active phase, if another terse style (e.g. caveman) is on, defer to it and keep only the input-side rules above; if none is on, the chat rules above apply. Never stack two styles.
 

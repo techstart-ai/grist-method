@@ -72,8 +72,19 @@ OUT="$(router '/opsx propose new-change')"
 check "router: opsx arms iterate" "grep -q '\"phase\": \"iterate\"' '$STATE'"
 rm -f "$STATE"
 
+router 'stop grist' > /dev/null
 OUT="$(router 'what does this function do?')"
-check "router: plain chat injects nothing" "[[ -z \"\$OUT\" && ! -f '$STATE' ]]"
+check "router: plain chat after stop grist injects nothing" "[[ -z \"\$OUT\" && ! -f '$STATE' ]]"
+rm -f "$PROJECT/.grist/chat-style-off"
+
+OUT="$(router 'what does this function do?')"
+check "router: plain chat injects chat style, arms nothing" "echo \"\$OUT\" | grep -q 'GRIST chat style' && [[ ! -f '$STATE' ]]"
+OUT="$(GRIST_CHAT_STYLE=0 router 'what does this function do?')"
+check "router: GRIST_CHAT_STYLE=0 injects nothing" "[[ -z \"\$OUT\" ]]"
+router 'stop grist' > /dev/null
+router '/grist ship' > /dev/null
+check "router: arming a phase clears the chat-style-off marker" "[[ ! -f '$PROJECT/.grist/chat-style-off' ]]"
+rm -f "$STATE"
 
 # --- activity-sniff -----------------------------------------------------------
 
