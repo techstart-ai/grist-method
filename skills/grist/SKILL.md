@@ -32,7 +32,7 @@ Default mode if just `/grist`: **ship**. Switch: `/grist chat|design|iterate|shi
 
 **Context placement:** stable project facts (invariants, load-bearing decisions, glossary, conventions) belong in CLAUDE.md `## Project facts` — loaded once into the cached prefix, never Read again. Volatile state (sprint, in-progress story) lives in `.grist/volatile.md`, read only when phase-relevant. Don't re-quote either back to the user.
 
-**Auto-clarity** — drop terse style, use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user confused or repeats a question. Resume mode after.
+**Auto-clarity** — drop terse style, use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user confused or repeats a question; anything persisted outside chat (code, comments, commits, docs, issues, PRs, memory files, messages to third parties — `.grist.yaml` artifacts keep their tight emission style); a harness-required status line or confirmation; questions or options you put to the user. Confirm irreversible actions in full sentences first. Resume mode after.
 
 ## Modes
 
@@ -44,7 +44,7 @@ The default for general codebase questions. Chat compression is the smallest win
 - Delegate broad searches to a sub-agent; accept only `path:line — symbol — note` back.
 - **Session facts:** when you discover a durable fact about the codebase ("payments flow starts at `create-session.ts:40`"), append one line to `.grist/facts.yaml` (`<slug>: <path:line> — <fact>`). Load that file at session start if present — it replaces re-exploration.
 - **Coexistence:** in chat mode (no BMAD/OpenSpec phase active), if another terse-output rule set (e.g. caveman) is already active, defer output style to it entirely; apply only the input-side rules. Never stack two compression styles. While a design/iterate/ship phase is active (auto-detected or explicit), GRIST owns output style and defers to nothing.
-- Chat: ultra (per Compression rules below) when no other style owns output.
+- Chat: ultra (per Compression rules below) when no other style owns output. If no other style is on, the Compression rules below apply in full.
 - No YAML artifacts emitted.
 
 ### /grist design — BMAD Analysis / Planning / Solutioning
@@ -93,11 +93,17 @@ For `/grist review <PR#|!MR|base..head>`, `gh pr review`, `glab mr review`, `/co
 
 ## Compression rules (chat)
 
-Drop: articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries, hedging.
-Fragments OK. Short synonyms. Technical terms exact. Errors quoted exact. Code unchanged.
-Do NOT invent abbreviations (cfg/impl/req/fn) — tokenizers split them same as the full word; zero saved, clarity lost. Standard acronyms (DB/API/HTTP) fine.
+Levels: **lite** = ceremony and hedging gone, articles and full sentences kept. **ultra** = also drop articles and conjunctions where cause-then-effect stays unambiguous; state each fact once.
 
-Pattern: `[thing] [action] [reason]. [next step].`
+- Answer first, then reason, then next step. Pattern: `[thing] [action] [reason]. [next step].`
+- No greeting, recap, or closer ("Sure", "Let me", "Hope this helps"); no just/really/basically/actually/simply; no hedging.
+- Short words ("fix", not "implement a solution for"). Standard acronyms (DB/API/HTTP) fine. No invented abbreviations (cfg/impl/req/fn) and no arrows — tokenizers split them same as the full word; zero saved, clarity lost.
+- Articles optional, meaning never: keep not/never/no/only/except; numbers and units exact. One idea per sentence, ≤20 words, active voice, imperative for instructions, one term per thing.
+- Payload verbatim: code, commands, paths, API names exact; errors quoted as the shortest decisive line. Code change in chat = changed lines + 1-2 context lines, not the whole file. Never delete or shorten an existing comment you were not asked to change.
+- Tool runs: no text between routine calls; one line before a multi-step run, one per phase change, one with the result.
+- Reply in the user's language (an explicit reply-language instruction wins); technical terms, commands, errors stay verbatim.
+- Never perform the style: no "mode on", no decorative tables or emoji. Plain wording no longer than the terse form? Use plain.
+- Before sending: opening line announces intent → delete; closing line recaps or offers help → delete; every negation, code span, path, number, error intact; any sentence with two readings → rewrite in full.
 
 ## Example
 
