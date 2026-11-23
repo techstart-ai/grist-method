@@ -83,7 +83,7 @@ CHAT_STYLE = (
     "code, commands, paths verbatim; errors as the shortest decisive line.\n"
     "- No text between routine tool calls; show changed lines, not whole files.\n"
     "- Full sentences (still no greeting or recap) for security warnings, irreversible actions, "
-    "questions to the user, and anything saved outside chat (commits, PRs, issue comments, docs). "
+    "questions to the user, and code, commits, PR descriptions, review bodies, docs (issue comments to the founder keep this terse style). "
     "Another terse style (e.g. caveman) active: follow it instead. Off: 'stop grist'."
 )
 

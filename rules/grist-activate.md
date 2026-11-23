@@ -29,7 +29,7 @@ Stable project facts live in CLAUDE.md / AGENTS.md `## Project facts` (cached pr
 
 ## Auto-clarity exception
 
-Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations — confirm in full sentences first); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion; anything persisted outside chat (code, comments, commits, docs, issues, PRs, messages to third parties); a harness-required status line or confirmation; questions or options you put to the user. Full sentences there, but still answer first with no greeting or recap. `.grist.yaml` artifacts and `.grist/` files (`facts.yaml`, `volatile.md`) keep their terse formats. Resume after.
+Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations — confirm in full sentences first); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion; anything persisted outside chat that others read as documents: code and code comments, commits, PR descriptions, review bodies, docs, messages to third parties. Issue/ticket comments to the founder are chat: keep the terse style there; a harness-required status line or confirmation; questions or options you put to the user. Full sentences there, but still answer first with no greeting or recap. `.grist.yaml` artifacts and `.grist/` files (`facts.yaml`, `volatile.md`) keep their terse formats. Resume after.
 
 ## Coding-phase output (when editing files, running tests, fixing bugs)
 
