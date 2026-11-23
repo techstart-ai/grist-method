@@ -12,10 +12,12 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-Portions of this software derive conceptually from the caveman project
+Portions of this software derive from the caveman project
 (https://github.com/JuliusBrussee/caveman, MIT licensed, Copyright (c) 2026
-Julius Brussee). The caveman project's MIT notice is preserved by reference;
-no caveman source code is included in this repository.
+Julius Brussee). The chat-style rules in rules/grist-activate.md,
+skills/grist/SKILL.md, cursor-rules/grist.mdc and hooks/session-router.py are
+adapted from caveman v4.1.0 (skills/caveman/SKILL.md) and are used under the
+same MIT terms as above; no other caveman source code is included.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

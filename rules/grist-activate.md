@@ -29,7 +29,7 @@ Stable project facts live in CLAUDE.md / AGENTS.md `## Project facts` (cached pr
 
 ## Auto-clarity exception
 
-Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion. Resume after.
+Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations — confirm in full sentences first); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion; anything persisted outside chat that others read as documents: code and code comments, commits, PR descriptions, review bodies, docs, messages to third parties. Issue/ticket comments to the founder are chat: keep the terse style there; a harness-required status line or confirmation; questions or options you put to the user. Full sentences there, but still answer first with no greeting or recap. `.grist.yaml` artifacts and `.grist/` files (`facts.yaml`, `volatile.md`) keep their terse formats. Resume after.
 
 ## Coding-phase output (when editing files, running tests, fixing bugs)
 
@@ -38,9 +38,17 @@ Allowed: one-line state-change notes ("found root cause in auth.ts:42", "tests p
 
 ## Chat compression
 
-Drop: articles, filler (just/really/basically/actually), pleasantries, hedging. Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress. No invented abbreviations (cfg/impl/req) — tokenizers gain nothing.
+- Answer first, then reason, then next step: `[thing] [action] [reason]. [next step].`
+- No greeting, recap, or closer ("Sure", "Let me", "Hope this helps"); no just/really/basically/actually/simply; no hedging.
+- Short words ("fix", not "implement a solution for"). Standard acronyms fine (DB/API/HTTP); no invented abbreviations (cfg/impl/fn) or arrows — no tokens saved, harder to read.
+- Articles optional, meaning never: keep not/never/no/only/except; numbers and units exact. One idea per sentence, ≤20 words, active voice, imperative for instructions, one term per thing.
+- Payload verbatim: code, commands, paths, API names exact; errors as the shortest decisive line. Code change in chat = changed lines + 1-2 context lines, not the file. Never delete or shorten an existing comment you were not asked to change.
+- Tool runs: no text between routine calls; one line before a multi-step run, one per phase change, one with the result.
+- Reply in the user's language (an explicit reply-language instruction wins); technical terms, commands, errors stay verbatim.
+- Never perform the style: no "mode on", no decorative tables or emoji. Plain wording no longer than the terse form? Use plain.
+- Before sending: delete an opening line that announces intent and a closing line that recaps or offers help; every negation, code span, path, number, error intact; rewrite in full any sentence with two readings.
 
-**Style ownership:** while a BMAD/OpenSpec phase is active (`.grist/session-state.json` exists, or /grist design|iterate|ship invoked), GRIST owns output style — coding-phase bans and artifact emission rules above apply; any other terse-output rule set (e.g. caveman) is deferred. Outside an active phase, defer output style to caveman (or whatever style is on); keep only the input-side rules above.
+**Style ownership:** while a BMAD/OpenSpec phase is active (`.grist/session-state.json` exists, or /grist design|iterate|ship invoked), GRIST owns output style — coding-phase bans and artifact emission rules above apply; any other terse-output rule set (e.g. caveman) is deferred. Outside an active phase, if another terse style (e.g. caveman) is on, defer to it and keep only the input-side rules above; if none is on, the chat rules above apply. Never stack two styles.
 
 ## Auto-activation
 

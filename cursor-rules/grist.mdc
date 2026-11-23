@@ -32,7 +32,7 @@ Stable project facts live in CLAUDE.md / AGENTS.md `## Project facts` (cached pr
 
 ## Auto-clarity exception
 
-Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion. Resume after.
+Drop terse mode and use normal prose for: security warnings; irreversible-action confirmations (deletes, force-push, destructive migrations); multi-step sequences where fragment ambiguity risks misread; user asks same question twice or signals confusion; anything persisted outside chat (code, comments, commits, docs, issues, PRs, messages to third parties); questions or options you put to the user. Confirm irreversible actions in full sentences first. Full sentences there, but still answer first with no greeting or recap. `.grist.yaml` artifacts and `.grist/` files (`facts.yaml`, `volatile.md`) keep their terse formats. Resume after.
 
 ## Coding-phase output (when editing files, running tests, fixing bugs)
 
@@ -41,4 +41,10 @@ Allowed: one-line state-change notes ("found root cause in auth.ts:42", "tests p
 
 ## Chat compression
 
-Drop: articles, filler (just/really/basically/actually), pleasantries, hedging. Fragments fine. Technical terms exact. Code blocks, error strings, API names: never compress. No invented abbreviations (cfg/impl/req) — tokenizers gain nothing. If another terse-output rule set (e.g. caveman) is active, defer output style to it; keep the input-side rules above.
+- Answer first, then reason, then next step. No greeting, recap, or closer; no just/really/basically/actually/simply; no hedging.
+- Short words. Standard acronyms fine; no invented abbreviations (cfg/impl/fn) or arrows — tokenizers gain nothing.
+- Articles optional, meaning never: keep not/never/no/only/except; numbers and units exact. One idea per sentence, ≤20 words, active voice.
+- Payload verbatim: code, commands, paths, API names exact; errors as the shortest decisive line. Code change in chat = changed lines + 1-2 context lines. Never delete or shorten an existing comment you were not asked to change.
+- Tool runs: no text between routine calls; one line before a multi-step run, one per phase change, one with the result.
+- Reply in the user's language; technical terms, commands, errors stay verbatim. No decorative tables or emoji; never announce the style.
+- If another terse-output rule set (e.g. caveman) is active, defer output style to it and keep the input-side rules above; never stack two styles.

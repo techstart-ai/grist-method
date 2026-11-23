@@ -210,7 +210,7 @@ You shouldn't have to remember `/grist` before every BMAD run. Two hooks arm the
 - **`hooks/session-router.py`** (UserPromptSubmit) — watches every prompt. `/bmad*` planning commands arm **design**; `dev-story` arms **ship**; `code-review`, `gh pr review|diff`, `glab mr review|diff`, `/code-review` arm **review**; `/opsx*` / OpenSpec commands arm **iterate**; `/grist <mode>` overrides explicitly. Triggers are command shapes — the bare words "review", "bmad" or "openspec" in prose arm nothing. The armed phase is persisted in `.grist/session-state.json` and a one-line reminder is re-injected on every subsequent prompt, so the mode survives the whole workflow instead of evaporating after one turn. `stop grist` / `/grist off` clears it.
 - **`hooks/activity-sniff.py`** (PreToolUse) — catches sessions the prompt regex misses (resumed mid-workflow): any Read/Write/Edit under `_bmad/`, `_bmad-output/`, or `openspec/` arms the matching phase. An existing phase is never overwritten.
 
-While a phase is armed, GRIST owns output style (no preambles, no end-of-turn summaries) and any other terse chat style (e.g. caveman) is deferred; when no phase is armed the router injects nothing and your default chat style owns the turn. Phase state also labels every turn for `gristats sessions` — shrinking the `unlabeled` bucket.
+While a phase is armed, GRIST owns output style (no preambles, no end-of-turn summaries) and any other terse chat style (e.g. caveman) is deferred; when no phase is armed the router injects a four-line GRIST chat style (adapted from caveman 4.1) that yields to any other terse style already on. `stop grist` silences it for the project until a phase is armed again; `GRIST_CHAT_STYLE=0` disables it. Phase state also labels every turn for `gristats sessions` — shrinking the `unlabeled` bucket.
 
 ### Auto-recall — cue-based memory, 1 hop
 
@@ -378,7 +378,7 @@ Before submitting:
 
 ## Acknowledgements
 
-GRIST builds on ideas from the [caveman](https://github.com/JuliusBrussee/caveman) project — specifically the always-on rule pattern, the persistence-across-turns model, and the philosophy that token efficiency comes from disciplined output style, not just model selection. Where caveman compresses prose, GRIST compresses the *artifacts that prose lives in* — and adds workflow-specific overlays for BMAD-method and OpenSpec that caveman intentionally stays out of.
+GRIST builds on ideas from the [caveman](https://github.com/JuliusBrussee/caveman) project — specifically the always-on rule pattern, the persistence-across-turns model, and the philosophy that token efficiency comes from disciplined output style, not just model selection. GRIST's chat-style rules are adapted from caveman v4.1.0. Where caveman compresses prose, GRIST compresses the *artifacts that prose lives in* — and adds workflow-specific overlays for BMAD-method and OpenSpec that caveman intentionally stays out of.
 
 Built on top of:
 
